@@ -82,16 +82,52 @@ def preprocess_text(text):
     return ' '.join(tokens)
 
 # Fungsi untuk memuat model
-@st.cache_resource
+import streamlit as st
+import pickle
+import os
+from pathlib import Path
+
 def load_model():
-    """Memuat model SVM yang telah dilatih"""
-    try:
-        with open('model_svm_terbaik.pkl', 'rb') as f:
-            model_data = pickle.load(f)
-        return model_data
-    except:
-        st.error("Model tidak ditemukan. Pastikan file 'model_svm_terbaik.pkl' tersedia.")
-        return None
+    # Cek beberapa lokasi yang mungkin
+    possible_paths = [
+        'model_svm_terbaik.pkl',
+        'models/model_svm_terbaik.pkl',
+        './models/model_svm_terbaik.pkl',
+        'app/models/model_svm_terbaik.pkl'
+    ]
+    
+    for path in possible_paths:
+        if os.path.exists(path):
+            try:
+                with open(path, 'rb') as file:
+                    model = pickle.load(file)
+                st.success(f"Model berhasil dimuat dari: {path}")
+                return model
+            except Exception as e:
+                st.error(f"Error memuat model dari {path}: {str(e)}")
+                return None
+    
+    # Jika tidak ditemukan
+    st.error("""
+    Model tidak ditemukan di lokasi manapun.
+    
+    Pastikan:
+    1. File 'model_svm_terbaik.pkl' ada di folder yang benar
+    2. Nama file tepat sama (termasuk kapitalisasi)
+    3. File model tidak corrupt
+    
+    Lokasi yang diperiksa:
+    """)
+    for path in possible_paths:
+        st.write(f"- {path}")
+    
+    return None
+
+# Gunakan fungsi
+model = load_model()
+if model:
+    # Lanjutkan dengan kode aplikasi Anda
+    st.write("Aplikasi siap digunakan!")
 
 # Halaman Beranda
 if menu == "🏠 Beranda":
