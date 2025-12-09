@@ -9,3 +9,4 @@ scikit-learn
 sastrawi
 google-play-scraper
 wordcloud
+plotly
