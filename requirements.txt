@@ -1,0 +1,10 @@
+nltk
+numpy
+streamlit
+seaborn
+matplotlib
+pandas
+joblib
+scikit-learn
+sastrawi
+google-play-scraper
