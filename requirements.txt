@@ -1,4 +1,3 @@
-punkt
 nltk
 numpy
 streamlit
@@ -10,3 +9,4 @@ scikit-learn
 sastrawi
 google-play-scraper
 wordcloud
+
