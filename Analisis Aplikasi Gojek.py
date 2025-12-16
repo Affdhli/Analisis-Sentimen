@@ -898,7 +898,7 @@ def train_evaluate_svm(results):
     
     kernel_option = st.selectbox(
         "Pilih kernel SVM:",
-        ['linear', 'poly', 'rbf', 'sigmoid']
+        ['linear', 'poly']
     )
     
     # Parameter tambahan berdasarkan kernel
