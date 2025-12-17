@@ -655,6 +655,7 @@ def data_splitting(X, y):
 def train_evaluate_svm(results):
     """Training dan evaluasi model SVM"""
     st.header("8. TRAINING DAN EVALUASI MODEL SVM")
+    st.write("="*60)
     
     def train_and_evaluate_svm(X_train, X_test, y_train, y_test, kernel_type='linear'):
         """Melatih dan mengevaluasi model SVM"""
@@ -689,9 +690,11 @@ def train_evaluate_svm(results):
     # Loop untuk setiap rasio dan kernel
     all_results = {}
     accuracy_comparison = []
+    evaluation_tables = {}  # Untuk menyimpan tabel evaluasi
     
     for ratio_name, data in results.items():
         st.subheader(f"EVALUASI UNTUK RASIO {ratio_name}")
+        st.write('='*40)
         
         ratio_results = {}
         
@@ -708,28 +711,104 @@ def train_evaluate_svm(results):
             
             ratio_results[kernel] = result
             
-            # Tampilkan hasil
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Akurasi", f"{result['accuracy']:.4f}")
-            with col2:
-                st.metric("Precision Positif", f"{result['classification_report']['positive']['precision']:.4f}")
-            with col3:
-                st.metric("Recall Positif", f"{result['classification_report']['positive']['recall']:.4f}")
-            with col4:
-                st.metric("F1-Score Positif", f"{result['classification_report']['positive']['f1-score']:.4f}")
+            # Tampilkan akurasi
+            st.write(f"**Akurasi: {result['accuracy']:.4f}**")
             
+            # Buat tabel evaluasi untuk kernel ini
+            eval_data = {
+                'Metric': ['Akurasi', 'Precision (Negatif)', 'Recall (Negatif)', 'F1-Score (Negatif)', 
+                          'Precision (Positif)', 'Recall (Positif)', 'F1-Score (Positif)'],
+                'Nilai': [
+                    result['accuracy'],
+                    result['classification_report']['negative']['precision'],
+                    result['classification_report']['negative']['recall'],
+                    result['classification_report']['negative']['f1-score'],
+                    result['classification_report']['positive']['precision'],
+                    result['classification_report']['positive']['recall'],
+                    result['classification_report']['positive']['f1-score']
+                ]
+            }
+            
+            eval_df = pd.DataFrame(eval_data)
+            eval_df['Nilai'] = eval_df['Nilai'].apply(lambda x: f"{x:.4f}")
+            
+            # Tampilkan tabel
+            st.table(eval_df)
+            
+            # Tampilkan detail classification report
+            with st.expander(f"📋 Detail Classification Report - {kernel}"):
+                # Buat dataframe dari classification report
+                report_df = pd.DataFrame(result['classification_report']).transpose()
+                # Format nilai menjadi 4 desimal
+                numeric_cols = ['precision', 'recall', 'f1-score', 'support']
+                for col in numeric_cols:
+                    if col in report_df.columns:
+                        report_df[col] = report_df[col].apply(lambda x: f"{x:.4f}" if isinstance(x, (int, float)) else x)
+                st.dataframe(report_df)
+            
+            # Confusion Matrix dalam bentuk tabel
+            st.write("**Confusion Matrix:**")
+            cm_df = pd.DataFrame(
+                result['confusion_matrix'],
+                index=['Actual Negatif', 'Actual Positif'],
+                columns=['Predicted Negatif', 'Predicted Positif']
+            )
+            st.table(cm_df)
+            
+            # Simpan untuk perbandingan
             accuracy_comparison.append({
                 'Rasio': ratio_name,
                 'Kernel': kernel,
-                'Akurasi': result['accuracy']
+                'Akurasi': result['accuracy'],
+                'Precision_Negatif': result['classification_report']['negative']['precision'],
+                'Recall_Negatif': result['classification_report']['negative']['recall'],
+                'F1_Negatif': result['classification_report']['negative']['f1-score'],
+                'Precision_Positif': result['classification_report']['positive']['precision'],
+                'Recall_Positif': result['classification_report']['positive']['recall'],
+                'F1_Positif': result['classification_report']['positive']['f1-score']
             })
+            
+            st.write("---")
         
         all_results[ratio_name] = ratio_results
         
+        # Tampilkan tabel perbandingan untuk rasio ini
+        st.subheader(f"📊 PERBANDINGAN KERNEL UNTUK RASIO {ratio_name}")
+        comparison_data = []
+        for kernel in ['linear', 'poly']:
+            if kernel in ratio_results:
+                result = ratio_results[kernel]
+                comparison_data.append({
+                    'Kernel': kernel,
+                    'Akurasi': f"{result['accuracy']:.4f}",
+                    'Precision (Negatif)': f"{result['classification_report']['negative']['precision']:.4f}",
+                    'Recall (Negatif)': f"{result['classification_report']['negative']['recall']:.4f}",
+                    'F1-Score (Negatif)': f"{result['classification_report']['negative']['f1-score']:.4f}",
+                    'Precision (Positif)': f"{result['classification_report']['positive']['precision']:.4f}",
+                    'Recall (Positif)': f"{result['classification_report']['positive']['recall']:.4f}",
+                    'F1-Score (Positif)': f"{result['classification_report']['positive']['f1-score']:.4f}"
+                })
+        
+        comparison_df = pd.DataFrame(comparison_data)
+        st.dataframe(comparison_df, use_container_width=True)
+        
         st.write("="*50)
     
-    return all_results, accuracy_comparison
+    # Tabel ringkasan semua model
+    st.header("📈 RINGKASAN SEMUA MODEL")
+    
+    summary_data = []
+    for item in accuracy_comparison:
+        summary_data.append({
+            'Rasio': item['Rasio'],
+            'Kernel': item['Kernel'],
+            'Akurasi': f"{item['Akurasi']:.4f}",
+            'P_Neg': f"{item['Precision_Negatif']:.4f}",
+            'R_Neg': f"{item['Recall_Negatif']:.4f}",
+            'F1_Neg': f"{item['F1_Negatif']:.4f}",
+            'P_Pos': f"{item['Precision_Positif']:.4f}",
+            'R_Pos': f"{item['Recall_Positif']:.4f}",
+            'F1_Pos': f"{item['F1_Positif
 
 def visualize_results(all_results, accuracy_comparison):
     """Visualisasi hasil"""
