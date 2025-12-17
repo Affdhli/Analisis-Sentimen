@@ -738,48 +738,116 @@ def visualize_results(all_results, accuracy_comparison):
     # Plot confusion matrix untuk setiap kombinasi
     st.subheader("📊 Confusion Matrix")
     
-    fig, axes = plt.subplots(2, 3, figsize=(15, 8))
-    axes = axes.flatten()
-    
-    idx = 0
+    # Hitung total plot yang akan dibuat
+    total_plots = 0
     for ratio_name, ratio_results in all_results.items():
-        for kernel_name, result in ratio_results.items():
-            cm = result['confusion_matrix']
-            ax = axes[idx]
-            
-            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                        xticklabels=['Negatif', 'Positif'],
-                        yticklabels=['Negatif', 'Positif'],
-                        ax=ax)
-            
-            ax.set_title(f'Rasio {ratio_name} - Kernel {kernel_name}\nAkurasi: {result["accuracy"]:.4f}')
-            ax.set_xlabel('Predicted')
-            ax.set_ylabel('Actual')
-            
-            idx += 1
+        total_plots += len(ratio_results)
     
-    plt.tight_layout()
-    st.pyplot(fig)
+    # Buat layout subplot yang sesuai
+    n_rows = 2
+    n_cols = 3  # Untuk 6 plot (3 rasio × 2 kernel)
+    
+    if total_plots <= n_rows * n_cols:
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 8))
+        
+        # Jika hanya ada 1 baris, axes bukan array 2D
+        if n_rows == 1:
+            axes = axes.reshape(1, -1)
+        elif n_cols == 1:
+            axes = axes.reshape(-1, 1)
+        
+        axes = axes.flatten()
+        
+        idx = 0
+        for ratio_name, ratio_results in all_results.items():
+            for kernel_name, result in ratio_results.items():
+                if idx < len(axes):
+                    cm = result['confusion_matrix']
+                    ax = axes[idx]
+                    
+                    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+                                xticklabels=['Negatif', 'Positif'],
+                                yticklabels=['Negatif', 'Positif'],
+                                ax=ax)
+                    
+                    ax.set_title(f'Rasio {ratio_name} - Kernel {kernel_name}\nAkurasi: {result["accuracy"]:.4f}')
+                    ax.set_xlabel('Predicted')
+                    ax.set_ylabel('Actual')
+                    
+                    idx += 1
+        
+        # Sembunyikan axes yang tidak digunakan
+        for i in range(idx, len(axes)):
+            axes[i].set_visible(False)
+        
+        plt.tight_layout()
+        st.pyplot(fig)
+    else:
+        # Jika terlalu banyak plot, tampilkan satu per satu
+        for ratio_name, ratio_results in all_results.items():
+            for kernel_name, result in ratio_results.items():
+                cm = result['confusion_matrix']
+                
+                fig, ax = plt.subplots(figsize=(6, 5))
+                sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+                            xticklabels=['Negatif', 'Positif'],
+                            yticklabels=['Negatif', 'Positif'],
+                            ax=ax)
+                
+                ax.set_title(f'Rasio {ratio_name} - Kernel {kernel_name}\nAkurasi: {result["accuracy"]:.4f}')
+                ax.set_xlabel('Predicted')
+                ax.set_ylabel('Actual')
+                
+                plt.tight_layout()
+                st.pyplot(fig)
     
     # Perbandingan akurasi
     st.subheader("📈 Perbandingan Akurasi")
-    accuracy_df = pd.DataFrame(accuracy_comparison)
     
-    fig, ax = plt.subplots(figsize=(12, 6))
-    sns.barplot(data=accuracy_df, x='Rasio', y='Akurasi', hue='Kernel')
-    ax.set_title('Perbandingan Akurasi SVM Berbagai Rasio dan Kernel', fontsize=14)
-    ax.set_ylim(0, 1.0)
-    ax.legend(title='Kernel', loc='upper right')
-    ax.grid(True, alpha=0.3)
+    if accuracy_comparison:
+        accuracy_df = pd.DataFrame(accuracy_comparison)
+        
+        fig, ax = plt.subplots(figsize=(12, 6))
+        
+        # Pastikan ada data untuk plot
+        if not accuracy_df.empty:
+            # Buat plot bar
+            if 'Kernel' in accuracy_df.columns:
+                # Plot dengan hue berdasarkan Kernel
+                if len(accuracy_df['Kernel'].unique()) > 1:
+                    sns.barplot(data=accuracy_df, x='Rasio', y='Akurasi', hue='Kernel', ax=ax)
+                else:
+                    # Jika hanya satu kernel, plot tanpa hue
+                    sns.barplot(data=accuracy_df, x='Rasio', y='Akurasi', ax=ax)
+            else:
+                sns.barplot(data=accuracy_df, x='Rasio', y='Akurasi', ax=ax)
+            
+            ax.set_title('Perbandingan Akurasi SVM Berbagai Rasio dan Kernel', fontsize=14)
+            ax.set_ylim(0, 1.0)
+            
+            if 'Kernel' in accuracy_df.columns and len(accuracy_df['Kernel'].unique()) > 1:
+                ax.legend(title='Kernel', loc='upper right')
+            
+            ax.grid(True, alpha=0.3)
+            
+            # Tambahkan nilai di atas bar
+            for i, (_, row) in enumerate(accuracy_df.iterrows()):
+                if 'Kernel' in accuracy_df.columns and len(accuracy_df['Kernel'].unique()) > 1:
+                    # Untuk grouped bar plot, posisi x lebih kompleks
+                    pass
+                else:
+                    ax.text(i, row['Akurasi'] + 0.01, f"{row['Akurasi']:.4f}", 
+                           ha='center', fontsize=10)
+        
+        st.pyplot(fig)
+        
+        # Tampilkan tabel perbandingan
+        with st.expander("📋 Tabel Perbandingan Akurasi"):
+            st.dataframe(accuracy_df)
+    else:
+        st.warning("Tidak ada data akurasi untuk divisualisasikan.")
     
-    for i, row in accuracy_df.iterrows():
-        ax.text(i % 3, row['Akurasi'] + 0.01, f"{row['Akurasi']:.4f}", 
-                ha='center', fontsize=10)
-    
-    st.pyplot(fig)
-    
-    return accuracy_df
-
+    return accuracy_df if accuracy_comparison else None
 def classify_new_sentences(all_results, tfidf_vectorizer):
     """Klasifikasi kalimat baru"""
     st.header("10. KLASIFIKASI KALIMAT BARU")
