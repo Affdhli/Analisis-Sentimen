@@ -1607,7 +1607,7 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
             return 'POSITIF' if model_prediction == 1 else 'NEGATIF'
     
     # Contoh kalimat untuk diklasifikasikan (dengan fokus pada kalimat negasi)
-    st.subheader("📝 KLASIFIKASI KALIMAT CONTOH (Fokus pada Kalimat Negasi)")
+    st.subheader("📝 KLASIFIKASI KALIMAT CONTOH")
     
     test_sentences = [
         "aplikasi gojek sangat bagus dan membantu sekali",
@@ -1719,7 +1719,7 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
     # Input interaktif
     st.subheader("🔍 INPUT INTERAKTIF DARI PENGGUNA")
     
-    st.info("📝 MASUKKAN KALIMAT UNTUK DIKLASIFIKASIKAN (Termasuk Kalimat dengan Negasi)")
+    st.info("📝 MASUKKAN KALIMAT UNTUK DIKLASIFIKASIKAN")
     
     # Contoh kalimat negasi untuk placeholder
     example_negation = ""
