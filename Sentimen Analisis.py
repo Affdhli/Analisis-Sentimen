@@ -1116,9 +1116,9 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
                 # Cek apakah ada negasi sebelumnya
                 has_negation = any(words[j] in negation_words for j in range(max(0, i-2), i))
                 if has_negation:
-                    score -= 1  # Positif dengan negasi menjadi negatif
+                    score -= 0.1  # Positif dengan negasi menjadi negatif
                 else:
-                    score += 1
+                    score += 0.1
                     
             # Cek kata negatif
             elif word in negative_words:
