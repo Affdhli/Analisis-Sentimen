@@ -1722,7 +1722,7 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
     st.info("📝 MASUKKAN KALIMAT UNTUK DIKLASIFIKASIKAN (Termasuk Kalimat dengan Negasi)")
     
     # Contoh kalimat negasi untuk placeholder
-    example_negation = "tidak begitu mahal dan cukup cepat"
+    example_negation = ""
     
     # Input text dengan contoh kalimat negasi
     user_input = st.text_area(
