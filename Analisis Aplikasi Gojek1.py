@@ -690,7 +690,6 @@ def train_evaluate_svm(results):
     # Loop untuk setiap rasio dan kernel
     all_results = {}
     accuracy_comparison = []
-    evaluation_tables = {}  # Untuk menyimpan tabel evaluasi
     
     for ratio_name, data in results.items():
         st.subheader(f"EVALUASI UNTUK RASIO {ratio_name}")
@@ -808,7 +807,13 @@ def train_evaluate_svm(results):
             'F1_Neg': f"{item['F1_Negatif']:.4f}",
             'P_Pos': f"{item['Precision_Positif']:.4f}",
             'R_Pos': f"{item['Recall_Positif']:.4f}",
-            'F1_Pos': f"{item['F1_Positif
+            'F1_Pos': f"{item['F1_Positif']:.4f}"
+        })
+    
+    summary_df = pd.DataFrame(summary_data)
+    st.dataframe(summary_df, use_container_width=True)
+    
+    return all_results, accuracy_comparison
 
 def visualize_results(all_results, accuracy_comparison):
     """Visualisasi hasil"""
