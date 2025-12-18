@@ -1288,9 +1288,9 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
     st.write(f"   Kernel: {best_model_info['kernel']}")
     st.write(f"   Akurasi: {best_model_info['accuracy']:.4f}")
     
-    # Fungsi prediksi dengan analisis konteks
+    # Fungsi prediksi dengan analisis konteks yang ditingkatkan
     def predict_sentiment_with_context(text, model, vectorizer):
-        """Fungsi untuk memprediksi sentimen dengan analisis konteks"""
+        """Fungsi untuk memprediksi sentimen dengan analisis konteks yang ditingkatkan"""
         
         # Preprocessing
         cleaned_text = clean_text(text)
@@ -1304,95 +1304,201 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
         # Prediksi dari model
         prediction = model.predict(text_vectorized)[0]
         
-        # Analisis manual untuk kalimat rancu
-        sentiment_analysis = analyze_sentiment_manually(text)
+        # Analisis manual untuk kalimat rancu dengan metode yang lebih akurat
+        manual_sentiment, manual_score = analyze_sentiment_manual_improved(text)
         
-        # Gabungkan hasil dari model dan analisis manual
-        final_sentiment = combine_predictions(prediction, sentiment_analysis, text)
+        # Gabungkan hasil dari model dan analisis manual dengan strategi baru
+        final_sentiment = combine_predictions_improved(prediction, manual_sentiment, manual_score, text)
         
         # Hitung jumlah kata
         word_count = count_words(text)
         word_count_processed = count_words(processed_text)
         
-        return final_sentiment, processed_text, word_count, word_count_processed, sentiment_analysis
+        return final_sentiment, processed_text, word_count, word_count_processed, manual_score, manual_sentiment
     
-    def analyze_sentiment_manually(text):
-        """Analisis sentimen manual untuk kalimat rancu"""
+    def analyze_sentiment_manual_improved(text):
+        """Analisis sentimen manual yang lebih akurat untuk kalimat negasi"""
         text_lower = text.lower()
         
-        # Kata-kata kunci untuk analisis
-        negation_words = ['tidak', 'bukan', 'belum', 'jangan', 'kurang', 'sedikit', 'agak']
-        positive_words = ['bagus', 'baik', 'mantap', 'cepat', 'mudah', 'puas', 'ramah', 'nyaman', 'murah', 'terjangkau']
-        negative_words = ['buruk', 'jelek', 'lambat', 'mahal', 'error', 'sulit', 'kecewa', 'lama', 'mahal']
-        ambiguous_words = ['cukup', 'lumayan', 'standar', 'biasa', 'biasa saja']
+        # Kata-kata kunci untuk analisis yang diperluas
+        negation_words = ['tidak', 'bukan', 'belum', 'jangan', 'kurang', 'sedikit', 'agak', 'cukup', 'lumayan']
+        
+        # Kata positif dengan bobot berbeda
+        positive_words = {
+            'bagus': 1.0, 'baik': 1.0, 'mantap': 1.0, 'cepat': 0.8, 'mudah': 0.8,
+            'puas': 1.0, 'ramah': 0.7, 'nyaman': 0.8, 'murah': 1.0, 'terjangkau': 1.0,
+            'hemat': 0.8, 'efisien': 0.7, 'profesional': 0.7, 'aman': 0.6
+        }
+        
+        # Kata negatif dengan bobot berbeda
+        negative_words = {
+            'buruk': 1.0, 'jelek': 1.0, 'lambat': 0.8, 'mahal': 1.0, 'error': 0.8,
+            'sulit': 0.7, 'kecewa': 1.0, 'lama': 0.6, 'rumit': 0.6, 'mengecewakan': 1.2,
+            'menyedihkan': 1.2, 'parah': 1.0
+        }
+        
+        # Kata intensifier
+        intensifier_words = ['sangat', 'sekali', 'banget', 'amat', 'terlalu']
         
         words = text_lower.split()
         score = 0
+        sentiment_words_analysis = []
         
+        # Analisis kalimat per kata dengan window konteks
         for i, word in enumerate(words):
+            word_score = 0
+            has_negation = False
+            has_intensifier = False
+            
             # Cek kata positif
             if word in positive_words:
-                # Cek apakah ada negasi sebelumnya
-                has_negation = any(words[j] in negation_words for j in range(max(0, i-2), i))
+                word_score = positive_words[word]
+                
+                # Cek negasi dalam window 2 kata sebelumnya
+                for j in range(max(0, i-2), i):
+                    if words[j] in negation_words:
+                        has_negation = True
+                        # Kata positif dengan negasi menjadi negatif dengan bobot penuh
+                        word_score = -word_score * 1.0
+                        break
+                
+                # Cek intensifier dalam window 2 kata sebelumnya
+                for j in range(max(0, i-2), i):
+                    if words[j] in intensifier_words:
+                        has_intensifier = True
+                        word_score *= 1.3  # Tingkatkan bobot jika ada intensifier
+                        break
+                        
+                score += word_score
+                
+                # Simpan analisis untuk debugging
                 if has_negation:
-                    score -= 1  # Positif dengan negasi menjadi negatif
+                    sentiment_words_analysis.append(f"'{word}' dengan negasi → negatif ({word_score:.1f})")
+                elif has_intensifier:
+                    sentiment_words_analysis.append(f"'{word}' dengan intensifier → positif kuat ({word_score:.1f})")
                 else:
-                    score += 1
+                    sentiment_words_analysis.append(f"'{word}' → positif ({word_score:.1f})")
                     
             # Cek kata negatif
             elif word in negative_words:
-                # Cek apakah ada negasi sebelumnya
-                has_negation = any(words[j] in negation_words for j in range(max(0, i-2), i))
-                if has_negation:
-                    score += 0.1  # Negatif dengan negasi menjadi positif
-                else:
-                    score -= 0.1
+                word_score = negative_words[word]
+                
+                # Cek negasi dalam window 2 kata sebelumnya
+                for j in range(max(0, i-2), i):
+                    if words[j] in negation_words:
+                        has_negation = True
+                        # Kata negatif dengan negasi menjadi positif dengan bobot penuh
+                        word_score = abs(word_score) * 1.0  # Konversi ke positif
+                        break
+                
+                # Cek intensifier dalam window 2 kata sebelumnya
+                for j in range(max(0, i-2), i):
+                    if words[j] in intensifier_words:
+                        has_intensifier = True
+                        word_score *= 1.3  # Tingkatkan bobot jika ada intensifier
+                        break
+                        
+                # Jika bukan negasi, maka tetap negatif
+                if not has_negation:
+                    word_score = -word_score
                     
-            # Cek kata ambigu
-            elif word in ambiguous_words:
-                score += 0.1  # Sedikit positif
+                score += word_score
+                
+                # Simpan analisis untuk debugging
+                if has_negation:
+                    sentiment_words_analysis.append(f"'{word}' dengan negasi → positif ({word_score:.1f})")
+                elif has_intensifier:
+                    sentiment_words_analysis.append(f"'{word}' dengan intensifier → negatif kuat ({word_score:.1f})")
+                else:
+                    sentiment_words_analysis.append(f"'{word}' → negatif ({word_score:.1f})")
         
-        # Analisis pola khusus
-        patterns = {
-            'kurang begitu mahal': 0.5,  # Sedikit positif
-            'tidak terlalu mahal': 0.5,   # Sedikit positif
-            'lumayan murah': 0.7,         # Cukup positif
-            'cukup terjangkau': 0.6,      # Cukup positif
-            'tidak buruk': 0.3,           # Sedikit positif
-            'tidak terlalu bagus': -0.3,  # Sedikit negatif
-            'kurang memuaskan': -0.5,     # Cukup negatif
-            'cukup mengecewakan': -0.6,    # Cukup negatif
+        # Analisis pola khusus untuk kalimat negasi
+        special_patterns = {
+            # Pola negasi + kata negatif → positif
+            'tidak begitu mahal': 0.8,
+            'tidak terlalu mahal': 0.8,
+            'kurang begitu mahal': 0.7,
+            'tidak buruk': 0.6,
+            'tidak jelek': 0.6,
+            'tidak lambat': 0.5,
+            'tidak sulit': 0.5,
+            'belum pernah kecewa': 0.7,
+            
+            # Pola negasi + kata positif → negatif
+            'tidak terlalu bagus': -0.6,
+            'tidak begitu baik': -0.6,
+            'kurang memuaskan': -0.7,
+            'tidak puas': -0.8,
+            'belum senang': -0.5,
+            
+            # Pola moderasi
+            'lumayan murah': 0.5,
+            'cukup terjangkau': 0.4,
+            'agak mahal': -0.4,
+            'sedikit lambat': -0.3,
         }
         
-        for pattern, pattern_score in patterns.items():
+        # Cek pola khusus
+        pattern_bonus = 0
+        matched_pattern = None
+        for pattern, pattern_score in special_patterns.items():
             if pattern in text_lower:
-                score += pattern_score
+                pattern_bonus = pattern_score
+                matched_pattern = pattern
+                score += pattern_bonus
+                sentiment_words_analysis.append(f"Pola '{pattern}' → {pattern_score:.1f}")
+                break
         
-        return score
+        # Tentukan sentimen manual berdasarkan skor
+        if score > 0.2:
+            manual_sentiment = 'POSITIF'
+        elif score < -0.2:
+            manual_sentiment = 'NEGATIF'
+        else:
+            manual_sentiment = 'AMBIGU'
+        
+        return manual_sentiment, score
     
-    def combine_predictions(model_prediction, manual_score, text):
-        """Gabungkan prediksi model dengan analisis manual"""
+    def combine_predictions_improved(model_prediction, manual_sentiment, manual_score, text):
+        """Gabungkan prediksi model dengan analisis manual dengan strategi yang lebih cerdas"""
         text_lower = text.lower()
         
-        # Jika kalimat mengandung pola rancu, berikan bobot lebih pada analisis manual
-        ambiguous_patterns = ['kurang begitu', 'tidak terlalu', 'agak', 'sedikit', 'cukup', 'lumayan']
-        is_ambiguous = any(pattern in text_lower for pattern in ambiguous_patterns)
+        # Cek apakah ada pola negasi yang jelas
+        negation_patterns = [
+            'tidak begitu', 'tidak terlalu', 'kurang begitu', 
+            'tidak', 'bukan', 'belum', 'kurang'
+        ]
         
-        if is_ambiguous:
-            # Untuk kalimat rancu, gunakan analisis manual
-            if manual_score > 0.2:
+        has_negation = any(pattern in text_lower for pattern in negation_patterns)
+        
+        # Kata-kata target yang sering dinegasikan
+        target_words_in_text = []
+        common_targets = ['mahal', 'buruk', 'jelek', 'lambat', 'sulit', 'bagus', 'baik', 'puas']
+        for word in common_targets:
+            if word in text_lower:
+                target_words_in_text.append(word)
+        
+        # Jika ada negasi dan ada kata target, prioritaskan analisis manual
+        if has_negation and target_words_in_text:
+            st.info(f"🔍 Ditemukan negasi pada kata: {', '.join(target_words_in_text)}")
+            
+            # Untuk pola seperti "tidak mahal", "kurang begitu mahal" → POSITIF
+            if any(word in ['mahal', 'buruk', 'jelek'] for word in target_words_in_text):
                 return 'POSITIF'
-            elif manual_score < -0.2:
+            
+            # Untuk pola seperti "tidak bagus", "kurang baik" → NEGATIF
+            elif any(word in ['bagus', 'baik', 'puas'] for word in target_words_in_text):
                 return 'NEGATIF'
-            else:
-                # Jika skor mendekati netral, gunakan model
-                return 'POSITIF' if model_prediction == 1 else 'NEGATIF'
+        
+        # Untuk kasus lain, gunakan analisis manual jika skornya cukup kuat
+        if abs(manual_score) > 0.3:
+            return manual_sentiment
         else:
-            # Untuk kalimat jelas, gunakan model
+            # Jika analisis manual lemah, gunakan model
             return 'POSITIF' if model_prediction == 1 else 'NEGATIF'
     
-    # Contoh kalimat untuk diklasifikasikan (termasuk kalimat rancu)
-    st.subheader("📝 KLASIFIKASI KALIMAT CONTOH (Termasuk Kalimat Rancu)")
+    # Contoh kalimat untuk diklasifikasikan (dengan fokus pada kalimat negasi)
+    st.subheader("📝 KLASIFIKASI KALIMAT CONTOH (Fokus pada Kalimat Negasi)")
     
     test_sentences = [
         "aplikasi gojek sangat bagus dan membantu sekali",
@@ -1401,30 +1507,40 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
         "aplikasi sering error dan sulit digunakan",
         "driver ramah dan perjalanan nyaman",
         "waktu tunggu terlalu lama dan mahal",
-        "gojek adalah aplikasi terbaik untuk transportasi",
-        "saya kecewa dengan pelayanan yang diberikan",
-        "mantap banget nih aplikasi, recommended!",
-        "parah banget servicenya, ga mau lagi pake gojek",
-        "kurang begitu mahal",  # Kalimat rancu
-        "tidak terlalu bagus",  # Kalimat rancu
-        "harga lumayan murah",  # Kalimat rancu
-        "cukup terjangkau",     # Kalimat rancu
-        "tidak buruk juga"      # Kalimat rancu
+        # Kalimat negasi yang harus menjadi positif
+        "tidak begitu mahal",           # Harus: POSITIF
+        "kurang begitu mahal",          # Harus: POSITIF  
+        "tidak terlalu mahal",          # Harus: POSITIF
+        "tidak buruk juga",             # Harus: POSITIF
+        "tidak jelek",                  # Harus: POSITIF
+        "tidak lambat",                 # Harus: POSITIF
+        # Kalimat negasi yang harus menjadi negatif
+        "tidak terlalu bagus",          # Harus: NEGATIF
+        "kurang memuaskan",             # Harus: NEGATIF
+        "tidak begitu baik",            # Harus: NEGATIF
+        "belum puas",                   # Harus: NEGATIF
+        # Kalimat moderasi
+        "lumayan murah",                # Harus: POSITIF
+        "cukup terjangkau",             # Harus: POSITIF
+        "agak mahal",                   # Harus: NEGATIF
+        "sedikit lambat"                # Harus: NEGATIF
     ]
     
     results_list = []
     for i, sentence in enumerate(test_sentences, 1):
-        sentiment, processed_text, wc_original, wc_processed, manual_score = predict_sentiment_with_context(
+        sentiment, processed_text, wc_original, wc_processed, manual_score, manual_sentiment = predict_sentiment_with_context(
             sentence, 
             best_model_info['model'], 
             tfidf_vectorizer
         )
         
         # Tentukan kategori kalimat
-        if 'kurang' in sentence.lower() or 'tidak terlalu' in sentence.lower() or 'cukup' in sentence.lower():
-            category = 'Rancu'
+        if any(word in sentence.lower() for word in ['tidak', 'kurang', 'bukan', 'belum']):
+            category = 'Negasi'
+        elif any(word in sentence.lower() for word in ['lumayan', 'cukup', 'agak', 'sedikit']):
+            category = 'Moderasi'
         else:
-            category = 'Positif'
+            category = 'Biasa'
         
         results_list.append({
             'No': i,
@@ -1433,51 +1549,59 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
             'Jml Kata': wc_original,
             'Hasil': sentiment,
             'Skor Manual': f"{manual_score:.2f}",
+            'Analisis Manual': manual_sentiment,
             'Warna': '✅' if sentiment == 'POSITIF' else '❌'
         })
     
     # Tampilkan hasil dalam tabel
     results_df = pd.DataFrame(results_list)
-    st.table(results_df[['No', 'Kalimat', 'Kategori', 'Jml Kata', 'Hasil', 'Skor Manual', 'Warna']])
+    st.table(results_df[['No', 'Kalimat', 'Kategori', 'Jml Kata', 'Hasil', 'Skor Manual', 'Analisis Manual', 'Warna']])
     
-    # Analisis khusus untuk kalimat rancu
-    st.subheader("🔍 ANALISIS KALIMAT RANCU")
+    # Analisis khusus untuk kalimat negasi
+    st.subheader("🔍 ANALISIS DETAIL KALIMAT NEGASI")
     
-    ambiguous_sentences = [s for s in test_sentences if any(word in s.lower() for word in ['kurang', 'tidak terlalu', 'cukup', 'lumayan'])]
+    negation_sentences = [s for s in test_sentences if any(word in s.lower() for word in ['tidak', 'kurang', 'bukan', 'belum'])]
     
-    for sentence in ambiguous_sentences:
-        sentiment, processed_text, wc_original, wc_processed, manual_score = predict_sentiment_with_context(
+    for sentence in negation_sentences:
+        sentiment, processed_text, wc_original, wc_processed, manual_score, manual_sentiment = predict_sentiment_with_context(
             sentence, 
             best_model_info['model'], 
             tfidf_vectorizer
         )
         
         st.write(f"**Kalimat:** '{sentence}'")
-        st.write(f"**Hasil:** {sentiment} (Skor manual: {manual_score:.2f})")
+        st.write(f"**Hasil Akhir:** {sentiment}")
+        st.write(f"**Skor Manual:** {manual_score:.2f}")
+        st.write(f"**Analisis Manual:** {manual_sentiment}")
         
         # Analisis kata per kata
         words = sentence.lower().split()
         analysis = []
+        
+        negation_words = ['tidak', 'bukan', 'belum', 'kurang']
+        positive_words = ['bagus', 'baik', 'mantap', 'murah', 'terjangkau', 'puas']
+        negative_words = ['buruk', 'jelek', 'mahal', 'lambat', 'sulit', 'kecewa', 'memuaskan']
+        
         for i, word in enumerate(words):
-            if word in ['bagus', 'baik', 'mantap', 'murah', 'terjangkau']:
-                # Cek negasi sebelumnya
-                neg_before = any(words[j] in ['tidak', 'kurang'] for j in range(max(0, i-2), i))
+            if word in negation_words:
+                analysis.append(f"**'{word}'** → kata negasi/pembalik")
+            elif word in positive_words:
+                # Cek apakah ada negasi sebelumnya
+                neg_before = any(words[j] in negation_words for j in range(max(0, i-2), i))
                 if neg_before:
-                    analysis.append(f"'{word}' (dengan negasi) → mengurangi sentimen positif")
+                    analysis.append(f"**'{word}'** (dengan negasi) → **NEGATIF** (kata positif dibalik)")
                 else:
-                    analysis.append(f"'{word}' → meningkatkan sentimen positif")
-            elif word in ['buruk', 'jelek', 'mahal', 'kecewa']:
-                # Cek negasi sebelumnya
-                neg_before = any(words[j] in ['tidak', 'kurang'] for j in range(max(0, i-2), i))
+                    analysis.append(f"**'{word}'** → **POSITIF**")
+            elif word in negative_words:
+                # Cek apakah ada negasi sebelumnya
+                neg_before = any(words[j] in negation_words for j in range(max(0, i-2), i))
                 if neg_before:
-                    analysis.append(f"'{word}' (dengan negasi) → meningkatkan sentimen positif")
+                    analysis.append(f"**'{word}'** (dengan negasi) → **POSITIF** (kata negatif dibalik)")
                 else:
-                    analysis.append(f"'{word}' → meningkatkan sentimen negatif")
-            elif word in ['kurang', 'tidak', 'cukup', 'lumayan']:
-                analysis.append(f"'{word}' → penanda kalimat rancu")
+                    analysis.append(f"**'{word}'** → **NEGATIF**")
         
         if analysis:
-            st.write("**Analisis Kata:**")
+            st.write("**Analisis Kata Per Kata:**")
             for a in analysis:
                 st.write(f"- {a}")
         
@@ -1486,82 +1610,116 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
     # Input interaktif
     st.subheader("🔍 INPUT INTERAKTIF DARI PENGGUNA")
     
-    st.info("📝 MASUKKAN KALIMAT UNTUK DIKLASIFIKASIKAN (Termasuk Kalimat Rancu)")
+    st.info("📝 MASUKKAN KALIMAT UNTUK DIKLASIFIKASIKAN (Termasuk Kalimat dengan Negasi)")
     
-    # Input text dengan contoh kalimat rancu
+    # Contoh kalimat negasi untuk placeholder
+    example_negation = "tidak begitu mahal dan cukup cepat"
+    
+    # Input text dengan contoh kalimat negasi
     user_input = st.text_area(
         "Masukkan kalimat untuk dianalisis:",
-        ""
+        example_negation,
+        height=100
     )
     
-    if st.button("🎯 Analisis Sentimen"):
-        if user_input:
-            sentiment, processed_text, wc_original, wc_processed, manual_score = predict_sentiment_with_context(
-                user_input, 
-                best_model_info['model'], 
-                tfidf_vectorizer
-            )
+    col1, col2 = st.columns(2)
+    with col1:
+        analyze_btn = st.button("🎯 Analisis Sentimen", type="primary")
+    with col2:
+        if st.button("🔄 Reset"):
+            user_input = ""
+    
+    if analyze_btn and user_input:
+        sentiment, processed_text, wc_original, wc_processed, manual_score, manual_sentiment = predict_sentiment_with_context(
+            user_input, 
+            best_model_info['model'], 
+            tfidf_vectorizer
+        )
+        
+        # Tampilkan hasil
+        st.subheader("🔍 HASIL ANALISIS:")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Kalimat Asli", f"{wc_original} kata")
+        with col2:
+            st.metric("Setelah Preprocessing", f"{wc_processed} kata")
+        with col3:
+            color = "green" if sentiment == 'POSITIF' else "red"
+            st.markdown(f"<h3 style='color: {color};'>{sentiment}</h3>", unsafe_allow_html=True)
+        with col4:
+            st.metric("Skor Analisis Manual", f"{manual_score:.2f}")
+        
+        with st.expander("📋 Detail Analisis Lengkap", expanded=True):
+            st.write(f"**Kalimat Asli:** '{user_input}'")
+            st.write(f"**Setelah preprocessing:** '{processed_text}'")
+            st.write(f"**Model:** {best_model_info['ratio']} ({best_model_info['kernel']})")
+            st.write(f"**Akurasi model:** {best_model_info['accuracy']:.4f}")
+            st.write(f"**Analisis Manual:** {manual_sentiment} (skor: {manual_score:.2f})")
             
-            # Tampilkan hasil
-            st.subheader("🔍 HASIL ANALISIS:")
-            
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Kalimat", f"{wc_original} kata")
-            with col2:
-                st.metric("Setelah Preprocessing", f"{wc_processed} kata")
-            with col3:
-                color = "green" if sentiment == 'POSITIF' else "red"
-                st.markdown(f"<h3 style='color: {color};'>{sentiment}</h3>", unsafe_allow_html=True)
-            with col4:
-                st.metric("Skor Analisis Manual", f"{manual_score:.2f}")
-            
-            with st.expander("📋 Detail Analisis Lengkap"):
-                st.write(f"**Kalimat Asli:** '{user_input}'")
-                st.write(f"**Setelah preprocessing:** '{processed_text}'")
-                st.write(f"**Model:** {best_model_info['ratio']} ({best_model_info['kernel']})")
-                st.write(f"**Akurasi model:** {best_model_info['accuracy']:.4f}")
+            # Deteksi pola negasi
+            negation_detected = any(word in user_input.lower() for word in ['tidak', 'bukan', 'belum', 'kurang'])
+            if negation_detected:
+                st.write("**⚠️ DETEKSI NEGASI:** Terdeteksi kata pembalik dalam kalimat")
                 
-                # Cek apakah kalimat rancu
-                ambiguous_words = ['kurang', 'tidak terlalu', 'agak', 'sedikit', 'cukup', 'lumayan', 'standar', 'biasa']
-                is_ambiguous = any(word in user_input.lower() for word in ambiguous_words)
+                # Analisis spesifik untuk negasi
+                words = user_input.lower().split()
+                negation_words_found = [w for w in words if w in ['tidak', 'bukan', 'belum', 'kurang']]
+                st.write(f"**Kata negasi ditemukan:** {', '.join(negation_words_found)}")
                 
-                if is_ambiguous:
-                    st.write("**Kategori:** 🟡 Kalimat Rancu/Ambigu")
-                    st.write("**Penjelasan:** Kalimat ini mengandung kata-kata yang membuat maknanya tidak jelas atau bertentangan.")
-                else:
-                    st.write("**Kategori:** 🔵 Kalimat Jelas")
-                    st.write("**Penjelasan:** Kalimat ini memiliki makna yang jelas dan langsung.")
+                # Cek kata yang mungkin dibalik
+                potential_targets = []
+                target_words = ['mahal', 'buruk', 'jelek', 'lambat', 'sulit', 'bagus', 'baik', 'puas', 'cepat', 'murah']
+                for word in target_words:
+                    if word in user_input.lower():
+                        potential_targets.append(word)
                 
-                # Analisis kata kunci
-                st.write("**Analisis Kata Kunci:**")
-                
-                positive_words = ['bagus', 'baik', 'mantap', 'cepat', 'mudah', 'suka', 'puas', 'ramah', 'nyaman', 'murah', 'terjangkau']
-                negative_words = ['buruk', 'jelek', 'lambat', 'mahal', 'error', 'sulit', 'kecewa', 'lama', 'mahal']
-                negation_words = ['tidak', 'bukan', 'belum', 'jangan', 'kurang', 'sedikit', 'agak']
-                
-                user_lower = user_input.lower()
-                words = user_lower.split()
-                
-                for i, word in enumerate(words):
-                    if word in positive_words:
-                        # Cek negasi sebelumnya
-                        neg_before = any(words[j] in negation_words for j in range(max(0, i-3), i))
-                        if neg_before:
-                            st.write(f"❓ '{word}' dengan negasi → mengurangi sentimen positif")
-                        else:
-                            st.write(f"✅ '{word}' → meningkatkan sentimen positif")
+                if potential_targets:
+                    st.write(f"**Kata target yang mungkin dibalik:** {', '.join(potential_targets)}")
                     
-                    elif word in negative_words:
-                        # Cek negasi sebelumnya
-                        neg_before = any(words[j] in negation_words for j in range(max(0, i-3), i))
-                        if neg_before:
-                            st.write(f"✅ '{word}' dengan negasi → meningkatkan sentimen positif")
-                        else:
-                            st.write(f"❌ '{word}' → meningkatkan sentimen negatif")
-                    
-                    elif word in negation_words:
-                        st.write(f"⚠️ '{word}' → kata pembalik/negasi")
+                    # Berikan penjelasan untuk setiap kata target
+                    for target in potential_targets:
+                        if target in ['mahal', 'buruk', 'jelek', 'lambat', 'sulit']:
+                            st.write(f"  - '{target}' dengan negasi → **POSITIF** (misal: 'tidak {target}' = baik)")
+                        elif target in ['bagus', 'baik', 'puas', 'cepat', 'murah']:
+                            st.write(f"  - '{target}' dengan negasi → **NEGATIF** (misal: 'tidak {target}' = kurang baik)")
+            
+            # Analisis kata kunci
+            st.write("**Analisis Kata Kunci:**")
+            
+            positive_words = ['bagus', 'baik', 'mantap', 'cepat', 'mudah', 'suka', 'puas', 'ramah', 'nyaman', 'murah', 'terjangkau']
+            negative_words = ['buruk', 'jelek', 'lambat', 'mahal', 'error', 'sulit', 'kecewa', 'lama']
+            negation_words = ['tidak', 'bukan', 'belum', 'jangan', 'kurang', 'sedikit', 'agak']
+            
+            user_lower = user_input.lower()
+            words = user_lower.split()
+            
+            found_keywords = False
+            for i, word in enumerate(words):
+                if word in positive_words:
+                    found_keywords = True
+                    # Cek negasi sebelumnya
+                    neg_before = any(words[j] in negation_words for j in range(max(0, i-3), i))
+                    if neg_before:
+                        st.write(f"❓ **'{word}'** dengan negasi → mengurangi sentimen positif")
+                    else:
+                        st.write(f"✅ **'{word}'** → meningkatkan sentimen positif")
+                
+                elif word in negative_words:
+                    found_keywords = True
+                    # Cek negasi sebelumnya
+                    neg_before = any(words[j] in negation_words for j in range(max(0, i-3), i))
+                    if neg_before:
+                        st.write(f"✅ **'{word}'** dengan negasi → meningkatkan sentimen positif")
+                    else:
+                        st.write(f"❌ **'{word}'** → meningkatkan sentimen negatif")
+                
+                elif word in negation_words:
+                    found_keywords = True
+                    st.write(f"⚠️ **'{word}'** → kata pembalik/negasi")
+            
+            if not found_keywords:
+                st.write("Tidak ditemukan kata kunci sentimen yang jelas.")
     
     return best_model_info
 
