@@ -1125,9 +1125,9 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
                 # Cek apakah ada negasi sebelumnya
                 has_negation = any(words[j] in negation_words for j in range(max(0, i-2), i))
                 if has_negation:
-                    score += 1  # Negatif dengan negasi menjadi positif
+                    score += 0.1  # Negatif dengan negasi menjadi positif
                 else:
-                    score -= 1
+                    score -= 0.1
                     
             # Cek kata ambigu
             elif word in ambiguous_words:
@@ -1143,7 +1143,6 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
             'tidak terlalu bagus': -0.3,  # Sedikit negatif
             'kurang memuaskan': -0.5,     # Cukup negatif
             'cukup mengecewakan': -0.6,    # Cukup negatif
-            'tidak begitu mahal': 0.1      # cukup positif
         }
         
         for pattern, pattern_score in patterns.items():
