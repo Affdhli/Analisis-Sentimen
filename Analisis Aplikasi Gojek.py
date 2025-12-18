@@ -1193,49 +1193,158 @@ def visualize_results(all_results, accuracy_comparison):
                 plt.tight_layout()
                 st.pyplot(fig)
     
-    # Perbandingan akurasi
+    # Perbandingan akurasi - DIPERBAIKI
     st.subheader("📈 Perbandingan Akurasi")
     
     if accuracy_comparison:
         accuracy_df = pd.DataFrame(accuracy_comparison)
         
-        fig, ax = plt.subplots(figsize=(12, 6))
+        # Rename kolom untuk konsistensi
+        if 'Akurasi_Keseluruhan' in accuracy_df.columns:
+            accuracy_df = accuracy_df.rename(columns={'Akurasi_Keseluruhan': 'Akurasi'})
+        
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
         
         # Pastikan ada data untuk plot
         if not accuracy_df.empty:
-            # Buat plot bar
-            if 'Kernel' in accuracy_df.columns:
-                # Plot dengan hue berdasarkan Kernel
-                if len(accuracy_df['Kernel'].unique()) > 1:
-                    sns.barplot(data=accuracy_df, x='Rasio', y='Akurasi', hue='Kernel', ax=ax)
-                else:
-                    # Jika hanya satu kernel, plot tanpa hue
-                    sns.barplot(data=accuracy_df, x='Rasio', y='Akurasi', ax=ax)
-            else:
-                sns.barplot(data=accuracy_df, x='Rasio', y='Akurasi', ax=ax)
+            # Plot 1: Perbandingan akurasi berdasarkan rasio dan kernel
+            if 'Kernel' in accuracy_df.columns and 'Rasio' in accuracy_df.columns:
+                # Buat pivot table untuk plotting yang lebih baik
+                pivot_df = accuracy_df.pivot(index='Rasio', columns='Kernel', values='Akurasi')
+                
+                # Plot grouped bar chart
+                x = np.arange(len(pivot_df.index))
+                width = 0.35
+                
+                kernels = pivot_df.columns.tolist()
+                for i, kernel in enumerate(kernels):
+                    offset = width * (i - len(kernels)/2 + 0.5)
+                    ax1.bar(x + offset, pivot_df[kernel].values, width, 
+                           label=kernel, alpha=0.7)
+                
+                ax1.set_xlabel('Rasio Pembagian Data')
+                ax1.set_ylabel('Akurasi')
+                ax1.set_title('Perbandingan Akurasi Berdasarkan Rasio dan Kernel', fontsize=14)
+                ax1.set_xticks(x)
+                ax1.set_xticklabels(pivot_df.index)
+                ax1.set_ylim(0, 1.0)
+                ax1.legend(title='Kernel')
+                ax1.grid(True, alpha=0.3, axis='y')
+                
+                # Tambahkan nilai di atas bar
+                for i, ratio in enumerate(pivot_df.index):
+                    for j, kernel in enumerate(kernels):
+                        value = pivot_df.loc[ratio, kernel]
+                        offset = width * (j - len(kernels)/2 + 0.5)
+                        ax1.text(i + offset, value + 0.01, f'{value:.3f}', 
+                                ha='center', va='bottom', fontsize=9)
             
-            ax.set_title('Perbandingan Akurasi SVM Berbagai Rasio dan Kernel', fontsize=14)
-            ax.set_ylim(0, 1.0)
-            
-            if 'Kernel' in accuracy_df.columns and len(accuracy_df['Kernel'].unique()) > 1:
-                ax.legend(title='Kernel', loc='upper right')
-            
-            ax.grid(True, alpha=0.3)
-            
-            # Tambahkan nilai di atas bar
-            for i, (_, row) in enumerate(accuracy_df.iterrows()):
-                if 'Kernel' in accuracy_df.columns and len(accuracy_df['Kernel'].unique()) > 1:
-                    # Untuk grouped bar plot, posisi x lebih kompleks
-                    pass
-                else:
-                    ax.text(i, row['Akurasi'] + 0.01, f"{row['Akurasi']:.4f}", 
-                           ha='center', fontsize=10)
+            # Plot 2: Perbandingan akurasi kelas positif vs negatif
+            if 'Akurasi_Positif' in accuracy_df.columns and 'Akurasi_Negatif' in accuracy_df.columns:
+                # Buat data untuk stacked bar
+                ratios = accuracy_df['Rasio'].unique()
+                kernel_types = accuracy_df['Kernel'].unique()
+                
+                # Pilih satu kernel untuk contoh visualisasi (linear)
+                example_df = accuracy_df[accuracy_df['Kernel'] == 'linear'].copy()
+                
+                if not example_df.empty:
+                    x = np.arange(len(example_df))
+                    pos_acc = example_df['Akurasi_Positif'].values
+                    neg_acc = example_df['Akurasi_Negatif'].values
+                    
+                    ax2.bar(x, pos_acc, label='Akurasi Positif', color='#2ecc71', alpha=0.7)
+                    ax2.bar(x, neg_acc, bottom=pos_acc, label='Akurasi Negatif', color='#e74c3c', alpha=0.7)
+                    
+                    ax2.set_xlabel('Rasio Pembagian Data')
+                    ax2.set_ylabel('Akurasi')
+                    ax2.set_title('Akurasi Kelas Positif vs Negatif (Kernel Linear)', fontsize=14)
+                    ax2.set_xticks(x)
+                    ax2.set_xticklabels(example_df['Rasio'].values)
+                    ax2.set_ylim(0, 2.0)  # Maksimum 2.0 karena stacked
+                    ax2.legend()
+                    ax2.grid(True, alpha=0.3, axis='y')
+                    
+                    # Tambahkan nilai
+                    for i, (pos, neg) in enumerate(zip(pos_acc, neg_acc)):
+                        ax2.text(i, pos/2, f'{pos:.3f}', ha='center', va='center', color='white', fontweight='bold')
+                        ax2.text(i, pos + neg/2, f'{neg:.3f}', ha='center', va='center', color='white', fontweight='bold')
+                        ax2.text(i, pos + neg + 0.05, f'Total: {pos+neg:.3f}', ha='center', va='bottom', fontsize=9)
         
+        plt.tight_layout()
         st.pyplot(fig)
         
-        # Tampilkan tabel perbandingan
-        with st.expander("📋 Tabel Perbandingan Akurasi"):
-            st.dataframe(accuracy_df)
+        # Visualisasi tambahan: Heatmap perbandingan
+        st.subheader("🔥 Heatmap Perbandingan Performa Model")
+        
+        if not accuracy_df.empty and 'Rasio' in accuracy_df.columns and 'Kernel' in accuracy_df.columns:
+            # Buat pivot table untuk heatmap
+            heatmap_data = accuracy_df.pivot(index='Rasio', columns='Kernel', values='Akurasi')
+            
+            fig_heat, ax_heat = plt.subplots(figsize=(8, 6))
+            sns.heatmap(heatmap_data, annot=True, fmt='.4f', cmap='YlOrRd', 
+                       linewidths=1, linecolor='white', ax=ax_heat)
+            ax_heat.set_title('Heatmap Akurasi Model\n(Semakin Gelap = Akurasi Lebih Tinggi)', fontsize=14)
+            ax_heat.set_xlabel('Kernel')
+            ax_heat.set_ylabel('Rasio Pembagian Data')
+            st.pyplot(fig_heat)
+        
+        # Tampilkan tabel perbandingan dengan format yang lebih baik
+        st.subheader("📋 Tabel Perbandingan Akurasi Model")
+        
+        with st.expander("Klik untuk melihat tabel detail"):
+            # Format kolom untuk tampilan yang lebih baik
+            display_df = accuracy_df.copy()
+            
+            # Format angka menjadi persentase
+            numeric_cols = ['Akurasi', 'Akurasi_Positif', 'Akurasi_Negatif', 
+                           'Precision_Negatif', 'Recall_Negatif', 'F1_Negatif',
+                           'Precision_Positif', 'Recall_Positif', 'F1_Positif']
+            
+            for col in numeric_cols:
+                if col in display_df.columns:
+                    display_df[col] = display_df[col].apply(lambda x: f"{x*100:.2f}%" if isinstance(x, (int, float)) else x)
+            
+            # Reorder kolom untuk tampilan yang lebih baik
+            column_order = ['Rasio', 'Kernel', 'Akurasi', 'Akurasi_Positif', 'Akurasi_Negatif',
+                           'Precision_Positif', 'Recall_Positif', 'F1_Positif',
+                           'Precision_Negatif', 'Recall_Negatif', 'F1_Negatif',
+                           'Support_Positif', 'Support_Negatif']
+            
+            # Hanya ambil kolom yang ada
+            available_cols = [col for col in column_order if col in display_df.columns]
+            display_df = display_df[available_cols]
+            
+            # Tambahkan ranking
+            display_df = display_df.sort_values(by='Akurasi', ascending=False)
+            display_df.insert(0, 'Ranking', range(1, len(display_df) + 1))
+            
+            st.dataframe(display_df, use_container_width=True)
+            
+            # Analisis model terbaik
+            st.subheader("🏆 Analisis Model Terbaik")
+            
+            best_overall_idx = display_df['Akurasi'].str.replace('%', '').astype(float).idxmax()
+            best_model = display_df.loc[best_overall_idx]
+            
+            col_best1, col_best2, col_best3 = st.columns(3)
+            with col_best1:
+                st.metric("Model Terbaik", f"{best_model['Rasio']} - {best_model['Kernel']}")
+            with col_best2:
+                st.metric("Akurasi Terbaik", best_model['Akurasi'])
+            with col_best3:
+                # Hitung selisih akurasi positif-negatif
+                pos_acc = float(best_model['Akurasi_Positif'].replace('%', ''))
+                neg_acc = float(best_model['Akurasi_Negatif'].replace('%', ''))
+                diff = pos_acc - neg_acc
+                st.metric("Selisih Akurasi (P-N)", f"{diff:.2f}%")
+            
+            # Rekomendasi
+            st.info(f"""
+            **Rekomendasi:** Gunakan model dengan **rasio {best_model['Rasio']}** dan **kernel {best_model['Kernel']}** 
+            karena memiliki akurasi tertinggi ({best_model['Akurasi']}) dengan keseimbangan yang baik 
+            antara akurasi kelas positif ({best_model['Akurasi_Positif']}) dan negatif ({best_model['Akurasi_Negatif']}).
+            """)
     else:
         st.warning("Tidak ada data akurasi untuk divisualisasikan.")
     
