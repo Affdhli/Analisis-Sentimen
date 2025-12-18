@@ -114,7 +114,6 @@ def upload_data():
             "fitur lengkap sangat membantu sehari-hari",
             "responsif dan mudah dioperasikan",
             "pengalaman menggunakan sangat menyenangkan"
-            "tidak terlalu mahal"
         ]
         
         # Contoh kalimat negatif
@@ -303,7 +302,7 @@ def lexicon_sentiment_labeling(df):
         'mengesankan', 'cepat sekali', 'murah sekali', 'sangat membantu',
         'sangat memuaskan', 'profesional', 'ramah', 'sopan', 'jujur',
         'tepat waktu', 'akurat', 'responsif', 'inovasi', 'kreatif',
-        'handal', 'andal', 'terpercaya', 'amanah', 'solutif', 'efektif'
+        'handal', 'andal', 'terpercaya', 'amanah', 'solutif', 'efektif','tidak terlalu'
     ]
     
     negative_words = [
