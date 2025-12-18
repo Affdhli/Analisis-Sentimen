@@ -1205,7 +1205,7 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
         if 'kurang' in sentence.lower() or 'tidak terlalu' in sentence.lower() or 'cukup' in sentence.lower():
             category = 'Rancu'
         else:
-            category = 'Biasa'
+            category = 'Positif'
         
         results_list.append({
             'No': i,
@@ -1272,7 +1272,7 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
     # Input text dengan contoh kalimat rancu
     user_input = st.text_area(
         "Masukkan kalimat untuk dianalisis:",
-        "Harga Gojek kurang begitu mahal untuk kualitas yang diberikan"
+        ""
     )
     
     if st.button("🎯 Analisis Sentimen"):
