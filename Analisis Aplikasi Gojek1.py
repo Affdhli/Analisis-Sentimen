@@ -302,7 +302,7 @@ def lexicon_sentiment_labeling(df):
         'mengesankan', 'cepat sekali', 'murah sekali', 'sangat membantu',
         'sangat memuaskan', 'profesional', 'ramah', 'sopan', 'jujur',
         'tepat waktu', 'akurat', 'responsif', 'inovasi', 'kreatif',
-        'handal', 'andal', 'terpercaya', 'amanah', 'solutif', 'efektif','tidak terlalu'
+        'handal', 'andal', 'terpercaya', 'amanah', 'solutif', 'efektif','tidak'
     ]
     
     negative_words = [
