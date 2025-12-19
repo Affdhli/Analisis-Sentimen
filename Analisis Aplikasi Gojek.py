@@ -515,7 +515,7 @@ def lexicon_sentiment_labeling(df):
 
 def text_preprocessing(df):
     """Preprocessing teks"""
-    st.header("5. TEXT PREPROCESSING")
+    st.header("4. TEXT PREPROCESSING")
     
     # Inisialisasi tools
     factory = StopWordRemoverFactory()
@@ -601,7 +601,7 @@ def text_preprocessing(df):
 
 def create_wordcloud_viz(df):
     """Visualisasi wordcloud"""
-    st.header("4. WORDCLOUD VISUALIZATION")
+    st.header("5. WORDCLOUD VISUALIZATION")
     
     # Fungsi untuk membuat wordcloud
     def create_wordcloud(text, title, color):
