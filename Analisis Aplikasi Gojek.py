@@ -33,11 +33,10 @@ def setup_page():
     """Setup halaman Streamlit"""
     st.set_page_config(
         page_title="Analisis Sentimen Ulasan Gojek",
-        page_icon="🚗",
         layout="wide"
     )
     
-    st.title("🚗 Analisis Sentimen Ulasan Gojek")
+    st.title("Analisis Sentimen Ulasan Gojek")
     st.markdown("---")
 
 def upload_data():
@@ -47,12 +46,12 @@ def upload_data():
     # Pilihan upload atau gunakan data contoh
     option = st.radio(
         "Pilih sumber data:",
-        ["📤 Upload file CSV", "📊 Gunakan data contoh"]
+        ["Upload file CSV", "Gunakan data contoh"]
     )
     
     df = None
     
-    if option == "📤 Upload file CSV":
+    if option == "Upload file CSV":
         uploaded_file = st.file_uploader(
             "Upload file CSV dengan kolom 'content' (dan 'sentimen' jika ada)", 
             type=['csv']
@@ -62,11 +61,11 @@ def upload_data():
             try:
                 # Baca file
                 df = pd.read_csv(uploaded_file)
-                st.success(f"✅ File berhasil diupload: {uploaded_file.name}")
+                st.success(f"File berhasil diupload: {uploaded_file.name}")
                 
                 # Validasi kolom
                 if 'content' not in df.columns:
-                    st.error("❌ File harus memiliki kolom 'content'")
+                    st.error("File harus memiliki kolom 'content'")
                     return None
                 
                 # Ambil 8000 data pertama jika lebih
@@ -75,9 +74,9 @@ def upload_data():
                 
                 if len(df) > max_data:
                     df = df.head(max_data)
-                    st.info(f"📊 Mengambil {max_data} data pertama dari total {original_count} data")
+                    st.info(f"Mengambil {max_data} data pertama dari total {original_count} data")
                 else:
-                    st.info(f"📊 Menggunakan semua data yang tersedia: {len(df)} data")
+                    st.info(f"Menggunakan semua data yang tersedia: {len(df)} data")
                 
                 # Tampilkan preview
                 with st.expander("Preview Data"):
@@ -97,7 +96,7 @@ def upload_data():
                 return None
     
     else:  # Gunakan data contoh
-        st.info("📊 Membuat data contoh 8000 baris...")
+        st.info("Membuat data contoh 8000 baris...")
         
         # Buat data contoh 8000 baris
         np.random.seed(42)
@@ -189,7 +188,7 @@ def upload_data():
             'sentimen': data_sentiment
         })
         
-        st.success(f"✅ Data contoh berhasil dibuat: {len(df)} baris")
+        st.success(f"Data contoh berhasil dibuat: {len(df)} baris")
         
         # Tampilkan preview
         with st.expander("Preview Data Contoh"):
@@ -266,7 +265,7 @@ def analyze_word_count(df):
     df['word_count'] = df['content'].apply(count_words)
     
     # Tampilkan statistik
-    st.subheader("📊 STATISTIK JUMLAH KATA (8000 ULASAN):")
+    st.subheader("STATISTIK JUMLAH KATA (8000 ULASAN):")
     
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -283,7 +282,7 @@ def analyze_word_count(df):
         st.metric("Ulasan Terpanjang", f"{df['word_count'].max()} kata")
     
     # Visualisasi
-    st.subheader("📈 Visualisasi Distribusi")
+    st.subheader("Visualisasi Distribusi")
     
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
     
@@ -436,7 +435,7 @@ def lexicon_sentiment_labeling(df):
         return 'positive' if positive_count > negative_count else 'negative'
     
     # Terapkan pelabelan advanced
-    with st.spinner("🔄 Melabeli sentimen dengan analisis lanjutan..."):
+    with st.spinner("Melabeli sentimen dengan analisis lanjutan..."):
         df['sentiment_label'] = df['content'].apply(lexicon_sentiment_analysis_advanced)
     
     # HAPUS jika ada yang masih netral (tidak seharusnya ada)
@@ -447,9 +446,9 @@ def lexicon_sentiment_labeling(df):
     total_data = len(df)
     
     # Tampilkan statistik
-    st.success(f"✅ Pelabelan selesai: {total_data} ulasan")
+    st.success(f"Pelabelan selesai: {total_data} ulasan")
     
-    st.subheader("📊 DISTRIBUSI SENTIMEN (BINARY - HANYA POSITIF/NEGATIF):")
+    st.subheader("DISTRIBUSI SENTIMEN (BINARY - HANYA POSITIF/NEGATIF):")
     
     col1, col2 = st.columns(2)
     with col1:
@@ -465,7 +464,7 @@ def lexicon_sentiment_labeling(df):
     positive_word_counts = df[df['sentiment_label'] == 'positive']['word_count']
     negative_word_counts = df[df['sentiment_label'] == 'negative']['word_count']
     
-    st.subheader("📊 ANALISIS JUMLAH KATA PER KATEGORI:")
+    st.subheader("ANALISIS JUMLAH KATA PER KATEGORI:")
     
     col_pos, col_neg = st.columns(2)
     
@@ -513,48 +512,6 @@ def lexicon_sentiment_labeling(df):
     st.pyplot(fig)
     
     return df, sentiment_distribution
-
-def create_wordcloud_viz(df):
-    """Visualisasi wordcloud"""
-    st.header("4. WORDCLOUD VISUALIZATION")
-    
-    # Fungsi untuk membuat wordcloud
-    def create_wordcloud(text, title, color):
-        wordcloud = WordCloud(
-            width=800,
-            height=400,
-            background_color='white',
-            max_words=150,
-            contour_width=3,
-            contour_color=color,
-            colormap='viridis' if color != 'darkred' else 'Reds'
-        ).generate(text)
-        
-        fig, ax = plt.subplots(figsize=(10, 5))
-        ax.imshow(wordcloud, interpolation='bilinear')
-        ax.axis('off')
-        ax.set_title(title, fontsize=16, pad=20)
-        st.pyplot(fig)
-        
-        # Hitung jumlah kata unik
-        words = text.split()
-        unique_words = set(words)
-        st.write(f"**{title}:**")
-        st.write(f"- Total kata: {len(words):,}")
-        st.write(f"- Kata unik: {len(unique_words):,}")
-        st.write("---")
-    
-    # Wordcloud untuk semua data
-    all_text = ' '.join(df['content'].astype(str).tolist())
-    create_wordcloud(all_text, 'WordCloud Semua Ulasan Gojek', 'steelblue')
-    
-    # Wordcloud untuk positif
-    positive_text = ' '.join(df[df['sentiment_label'] == 'positive']['content'].astype(str).tolist())
-    create_wordcloud(positive_text, 'WordCloud - Ulasan Positif', 'green')
-    
-    # Wordcloud untuk negatif
-    negative_text = ' '.join(df[df['sentiment_label'] == 'negative']['content'].astype(str).tolist())
-    create_wordcloud(negative_text, 'WordCloud - Ulasan Negatif', 'darkred')
 
 def text_preprocessing(df):
     """Preprocessing teks"""
@@ -614,7 +571,7 @@ def text_preprocessing(df):
     st.success("✓ Preprocessing selesai!")
     
     # Tampilkan perbandingan
-    st.subheader("📊 PERBANDINGAN JUMLAH KATA:")
+    st.subheader("PERBANDINGAN JUMLAH KATA:")
     
     before_total = df['word_count'].sum()
     after_total = df['word_count_processed'].sum()
@@ -642,6 +599,48 @@ def text_preprocessing(df):
     
     return df
 
+def create_wordcloud_viz(df):
+    """Visualisasi wordcloud"""
+    st.header("4. WORDCLOUD VISUALIZATION")
+    
+    # Fungsi untuk membuat wordcloud
+    def create_wordcloud(text, title, color):
+        wordcloud = WordCloud(
+            width=800,
+            height=400,
+            background_color='white',
+            max_words=150,
+            contour_width=3,
+            contour_color=color,
+            colormap='viridis' if color != 'darkred' else 'Reds'
+        ).generate(text)
+        
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.imshow(wordcloud, interpolation='bilinear')
+        ax.axis('off')
+        ax.set_title(title, fontsize=16, pad=20)
+        st.pyplot(fig)
+        
+        # Hitung jumlah kata unik
+        words = text.split()
+        unique_words = set(words)
+        st.write(f"**{title}:**")
+        st.write(f"- Total kata: {len(words):,}")
+        st.write(f"- Kata unik: {len(unique_words):,}")
+        st.write("---")
+    
+    # Wordcloud untuk semua data
+    all_text = ' '.join(df['content'].astype(str).tolist())
+    create_wordcloud(all_text, 'WordCloud Semua Ulasan Gojek', 'steelblue')
+    
+    # Wordcloud untuk positif
+    positive_text = ' '.join(df[df['sentiment_label'] == 'positive']['content'].astype(str).tolist())
+    create_wordcloud(positive_text, 'WordCloud - Ulasan Positif', 'green')
+    
+    # Wordcloud untuk negatif
+    negative_text = ' '.join(df[df['sentiment_label'] == 'negative']['content'].astype(str).tolist())
+    create_wordcloud(negative_text, 'WordCloud - Ulasan Negatif', 'darkred')
+
 def tfidf_feature_extraction(df):
     """Ekstraksi fitur TF-IDF"""
     st.header("6. EKSTRAKSI FITUR DENGAN TF-IDF")
@@ -655,13 +654,13 @@ def tfidf_feature_extraction(df):
     )
     
     # Transformasi teks menjadi vektor TF-IDF
-    with st.spinner("🔄 Melakukan transformasi TF-IDF..."):
+    with st.spinner("Melakukan transformasi TF-IDF..."):
         X = tfidf_vectorizer.fit_transform(df['processed_text'])
         y = df['sentiment_label'].map({'positive': 1, 'negative': 0})
     
-    st.success(f"✓ Transformasi TF-IDF selesai!")
+    st.success(f"Transformasi TF-IDF selesai!")
     
-    st.subheader("📊 INFORMASI FITUR:")
+    st.subheader("INFORMASI FITUR:")
     col1, col2 = st.columns(2)
     with col1:
         st.metric("Dimensi matriks TF-IDF", f"{X.shape}")
@@ -669,7 +668,7 @@ def tfidf_feature_extraction(df):
         st.metric("Jumlah fitur (kata unik)", f"{len(tfidf_vectorizer.get_feature_names_out())}")
     
     # Tampilkan 20 fitur teratas berdasarkan IDF
-    st.subheader("🏆 Top 20 Fitur berdasarkan IDF (kata paling khas):")
+    st.subheader("Top 20 Fitur berdasarkan IDF (kata paling khas):")
     
     feature_names = tfidf_vectorizer.get_feature_names_out()
     idf_values = tfidf_vectorizer.idf_
@@ -877,7 +876,7 @@ def train_evaluate_svm(results):
             st.pyplot(fig_acc)
             
             # Tampilkan detail classification report
-            with st.expander(f"📋 Detail Classification Report - {kernel}"):
+            with st.expander(f"Detail Classification Report - {kernel}"):
                 # Buat dataframe dari classification report
                 report_df = pd.DataFrame(result['classification_report']).transpose()
                 # Format nilai menjadi 4 desimal
@@ -932,7 +931,7 @@ def train_evaluate_svm(results):
         all_results[ratio_name] = ratio_results
         
         # Tampilkan tabel perbandingan untuk rasio ini
-        st.subheader(f"📊 PERBANDINGAN KERNEL UNTUK RASIO {ratio_name}")
+        st.subheader(f"PERBANDINGAN KERNEL UNTUK RASIO {ratio_name}")
         comparison_data = []
         for kernel in ['linear', 'poly']:
             if kernel in ratio_results:
@@ -989,7 +988,7 @@ def train_evaluate_svm(results):
         st.write("="*50)
     
     # Tabel ringkasan semua model
-    st.header("📈 RINGKASAN SEMUA MODEL")
+    st.header("RINGKASAN SEMUA MODEL")
     
     summary_data = []
     for item in accuracy_comparison:
@@ -1013,7 +1012,7 @@ def train_evaluate_svm(results):
     st.dataframe(summary_df, use_container_width=True)
     
     # Visualisasi perbandingan semua model
-    st.subheader("📊 VISUALISASI PERBANDINGAN SEMUA MODEL")
+    st.subheader("VISUALISASI PERBANDINGAN SEMUA MODEL")
     
     # Persiapkan data untuk visualisasi
     if accuracy_comparison:
@@ -1079,7 +1078,7 @@ def train_evaluate_svm(results):
         st.pyplot(fig_all)
         
         # Analisis performa per kelas
-        st.subheader("🔍 ANALISIS PERFORMA PER KELAS")
+        st.subheader("ANALISIS PERFORMA PER KELAS")
         
         # Hitung rata-rata akurasi per kelas
         avg_neg_acc = vis_df['Akurasi_Negatif'].mean()
@@ -1106,7 +1105,7 @@ def train_evaluate_svm(results):
         st.write(f"- Akurasi: {vis_df.loc[best_pos_idx, 'Akurasi_Positif']:.4f}")
         
         # Rekomendasi model berdasarkan keseimbangan akurasi
-        st.write("**📊 Rekomendasi Model Berdasarkan Keseimbangan Akurasi:**")
+        st.write("**Rekomendasi Model Berdasarkan Keseimbangan Akurasi:**")
         
         # Hitung selisih absolut antara akurasi positif dan negatif
         vis_df['Selisih_Absolut'] = abs(vis_df['Akurasi_Positif'] - vis_df['Akurasi_Negatif'])
@@ -1128,7 +1127,7 @@ def visualize_results(all_results, accuracy_comparison):
     st.header("9. VISUALISASI HASIL")
     
     # Plot confusion matrix untuk setiap kombinasi
-    st.subheader("📊 Confusion Matrix")
+    st.subheader("Confusion Matrix")
     
     # Hitung total plot yang akan dibuat
     total_plots = 0
@@ -1194,7 +1193,7 @@ def visualize_results(all_results, accuracy_comparison):
                 st.pyplot(fig)
     
     # Perbandingan akurasi - DIPERBAIKI
-    st.subheader("📈 Perbandingan Akurasi")
+    st.subheader("Perbandingan Akurasi")
     
     if accuracy_comparison:
         accuracy_df = pd.DataFrame(accuracy_comparison)
@@ -1275,7 +1274,7 @@ def visualize_results(all_results, accuracy_comparison):
         st.pyplot(fig)
         
         # Visualisasi tambahan: Heatmap perbandingan
-        st.subheader("🔥 Heatmap Perbandingan Performa Model")
+        st.subheader("Heatmap Perbandingan Performa Model")
         
         if not accuracy_df.empty and 'Rasio' in accuracy_df.columns and 'Kernel' in accuracy_df.columns:
             # Buat pivot table untuk heatmap
@@ -1290,7 +1289,7 @@ def visualize_results(all_results, accuracy_comparison):
             st.pyplot(fig_heat)
         
         # Tampilkan tabel perbandingan dengan format yang lebih baik
-        st.subheader("📋 Tabel Perbandingan Akurasi Model")
+        st.subheader("Tabel Perbandingan Akurasi Model")
         
         with st.expander("Klik untuk melihat tabel detail"):
             # Format kolom untuk tampilan yang lebih baik
@@ -1322,7 +1321,7 @@ def visualize_results(all_results, accuracy_comparison):
             st.dataframe(display_df, use_container_width=True)
             
             # Analisis model terbaik
-            st.subheader("🏆 Analisis Model Terbaik")
+            st.subheader("Analisis Model Terbaik")
             
             best_overall_idx = display_df['Akurasi'].str.replace('%', '').astype(float).idxmax()
             best_model = display_df.loc[best_overall_idx]
@@ -1392,7 +1391,7 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
                     'accuracy': result['accuracy']
                 }
     
-    st.success(f"✨ MODEL TERBAIK:")
+    st.success(f"MODEL TERBAIK:")
     st.write(f"   Rasio: {best_model_info['ratio']}")
     st.write(f"   Kernel: {best_model_info['kernel']}")
     st.write(f"   Akurasi: {best_model_info['accuracy']:.4f}")
@@ -1607,7 +1606,7 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
             return 'POSITIF' if model_prediction == 1 else 'NEGATIF'
     
     # Contoh kalimat untuk diklasifikasikan (dengan fokus pada kalimat negasi)
-    st.subheader("📝 KLASIFIKASI KALIMAT CONTOH")
+    st.subheader("KLASIFIKASI KALIMAT CONTOH")
     
     test_sentences = [
         "aplikasi gojek sangat bagus dan membantu sekali",
@@ -1717,9 +1716,9 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
         st.write("---")
     
     # Input interaktif
-    st.subheader("🔍 INPUT INTERAKTIF DARI PENGGUNA")
+    st.subheader("INPUT INTERAKTIF DARI PENGGUNA")
     
-    st.info("📝 MASUKKAN KALIMAT UNTUK DIKLASIFIKASIKAN")
+    st.info("MASUKKAN KALIMAT UNTUK DIKLASIFIKASIKAN")
     
     # Contoh kalimat negasi untuk placeholder
     example_negation = ""
@@ -1733,9 +1732,9 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
     
     col1, col2 = st.columns(2)
     with col1:
-        analyze_btn = st.button("🎯 Analisis Sentimen", type="primary")
+        analyze_btn = st.button("Analisis Sentimen", type="primary")
     with col2:
-        if st.button("🔄 Reset"):
+        if st.button("Reset"):
             user_input = ""
     
     if analyze_btn and user_input:
@@ -1746,7 +1745,7 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
         )
         
         # Tampilkan hasil
-        st.subheader("🔍 HASIL ANALISIS:")
+        st.subheader("HASIL ANALISIS:")
         
         col1, col2, col3, col4 = st.columns(4)
         with col1:
@@ -1759,7 +1758,7 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
         with col4:
             st.metric("Skor Analisis Manual", f"{manual_score:.2f}")
         
-        with st.expander("📋 Detail Analisis Lengkap", expanded=True):
+        with st.expander("Detail Analisis Lengkap", expanded=True):
             st.write(f"**Kalimat Asli:** '{user_input}'")
             st.write(f"**Setelah preprocessing:** '{processed_text}'")
             st.write(f"**Model:** {best_model_info['ratio']} ({best_model_info['kernel']})")
@@ -1769,7 +1768,7 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
             # Deteksi pola negasi
             negation_detected = any(word in user_input.lower() for word in ['tidak', 'bukan', 'belum', 'kurang'])
             if negation_detected:
-                st.write("**⚠️ DETEKSI NEGASI:** Terdeteksi kata pembalik dalam kalimat")
+                st.write("**DETEKSI NEGASI:** Terdeteksi kata pembalik dalam kalimat")
                 
                 # Analisis spesifik untuk negasi
                 words = user_input.lower().split()
@@ -1812,20 +1811,20 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
                     if neg_before:
                         st.write(f"❓ **'{word}'** dengan negasi → mengurangi sentimen positif")
                     else:
-                        st.write(f"✅ **'{word}'** → meningkatkan sentimen positif")
+                        st.write(f"**'{word}'** → meningkatkan sentimen positif")
                 
                 elif word in negative_words:
                     found_keywords = True
                     # Cek negasi sebelumnya
                     neg_before = any(words[j] in negation_words for j in range(max(0, i-3), i))
                     if neg_before:
-                        st.write(f"✅ **'{word}'** dengan negasi → meningkatkan sentimen positif")
+                        st.write(f"**'{word}'** dengan negasi → meningkatkan sentimen positif")
                     else:
-                        st.write(f"❌ **'{word}'** → meningkatkan sentimen negatif")
+                        st.write(f"**'{word}'** → meningkatkan sentimen negatif")
                 
                 elif word in negation_words:
                     found_keywords = True
-                    st.write(f"⚠️ **'{word}'** → kata pembalik/negasi")
+                    st.write(f"**'{word}'** → kata pembalik/negasi")
             
             if not found_keywords:
                 st.write("Tidak ditemukan kata kunci sentimen yang jelas.")
@@ -1836,7 +1835,7 @@ def final_statistics(df, sentiment_distribution, tfidf_vectorizer, best_model_in
     """Statistik final dan penyimpanan data"""
     st.header("12. STATISTIK FINAL DAN SIMPAN DATA")
     
-    st.subheader("📊 REKAPITULASI PROYEK:")
+    st.subheader("REKAPITULASI PROYEK:")
     
     # Tampilkan ringkasan
     col1, col2 = st.columns(2)
@@ -1883,9 +1882,9 @@ def final_statistics(df, sentiment_distribution, tfidf_vectorizer, best_model_in
         st.write(f"- {example}")
     
     # Simpan model dan data
-    st.subheader("💾 SIMPAN HASIL ANALISIS")
+    st.subheader("SIMPAN HASIL ANALISIS")
     
-    if st.button("💾 Simpan Model dan Hasil Analisis"):
+    if st.button("Simpan Model dan Hasil Analisis"):
         # Buat timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
@@ -1925,31 +1924,19 @@ def final_statistics(df, sentiment_distribution, tfidf_vectorizer, best_model_in
             df_save = df[['content', 'sentiment_label', 'word_count', 'processed_text', 'word_count_processed']].copy()
             df_save.to_csv(data_filename, index=False, encoding='utf-8')
             
-            st.success(f"✅ DATA DAN MODEL DISIMPAN:")
+            st.success(f"DATA DAN MODEL DISIMPAN:")
             st.write(f"   Model terbaik: {model_filename}")
             st.write(f"   Hasil evaluasi: {results_filename}")
             st.write(f"   Data proses: {data_filename}")
-            
-            # Tampilkan pesan akhir
-            st.success("""
-            ✨ PROYEK ANALISIS SENTIMEN ULASAN GOJEK SELESAI ✨
-            
-            **Fitur Tambahan:**
-            ✅ Dapat menganalisis kalimat rancu seperti "kurang begitu mahal"
-            ✅ Deteksi kata negasi dan analisis konteks
-            ✅ Gabungan prediksi model dan analisis manual
-            ✅ Visualisasi dan analisis komprehensif
-            """)
-            
         except Exception as e:
-            st.error(f"❌ Error menyimpan file: {str(e)}")
+            st.error(f"Error menyimpan file: {str(e)}")
 
 def main():
     """Fungsi utama"""
     setup_page()
     
     # Sidebar untuk navigasi
-    st.sidebar.title("📊 Navigasi Analisis")
+    st.sidebar.title("Navigasi Analisis")
     sections = [
         "1. Upload Data",
         "2. Analisis Jumlah Kata", 
@@ -1994,55 +1981,55 @@ def main():
         if st.session_state.df is not None:
             st.session_state.df = analyze_word_count(st.session_state.df)
         else:
-            st.warning("⚠️ Silakan upload data terlebih dahulu di section '1. Upload Data'!")
+            st.warning("Silakan upload data terlebih dahulu di section '1. Upload Data'!")
     
     elif selected_section == "3. Pelabelan Sentimen":
         if st.session_state.df is not None:
             st.session_state.df, st.session_state.sentiment_distribution = lexicon_sentiment_labeling(st.session_state.df)
         else:
-            st.warning("⚠️ Silakan upload data terlebih dahulu di section '1. Upload Data'!")
+            st.warning("Silakan upload data terlebih dahulu di section '1. Upload Data'!")
     
     elif selected_section == "4. WordCloud":
         if st.session_state.df is not None:
             create_wordcloud_viz(st.session_state.df)
         else:
-            st.warning("⚠️ Silakan upload data terlebih dahulu di section '1. Upload Data'!")
+            st.warning("Silakan upload data terlebih dahulu di section '1. Upload Data'!")
     
     elif selected_section == "5. Preprocessing Text":
         if st.session_state.df is not None:
             st.session_state.df = text_preprocessing(st.session_state.df)
         else:
-            st.warning("⚠️ Silakan upload data terlebih dahulu di section '1. Upload Data'!")
+            st.warning("Silakan upload data terlebih dahulu di section '1. Upload Data'!")
     
     elif selected_section == "6. Ekstraksi Fitur TF-IDF":
         if st.session_state.df is not None:
             st.session_state.X, st.session_state.y, st.session_state.tfidf_vectorizer = tfidf_feature_extraction(st.session_state.df)
         else:
-            st.warning("⚠️ Silakan upload data terlebih dahulu di section '1. Upload Data'!")
+            st.warning("Silakan upload data terlebih dahulu di section '1. Upload Data'!")
     
     elif selected_section == "7. Pembagian Data":
         if st.session_state.X is not None and st.session_state.y is not None:
             st.session_state.results = data_splitting(st.session_state.X, st.session_state.y)
         else:
-            st.warning("⚠️ Silakan lakukan ekstraksi fitur terlebih dahulu di section '6. Ekstraksi Fitur TF-IDF'!")
+            st.warning("Silakan lakukan ekstraksi fitur terlebih dahulu di section '6. Ekstraksi Fitur TF-IDF'!")
     
     elif selected_section == "8. Training & Evaluasi SVM":
         if st.session_state.results is not None:
             st.session_state.all_results, st.session_state.accuracy_comparison = train_evaluate_svm(st.session_state.results)
         else:
-            st.warning("⚠️ Silakan lakukan pembagian data terlebih dahulu di section '7. Pembagian Data'!")
+            st.warning("Silakan lakukan pembagian data terlebih dahulu di section '7. Pembagian Data'!")
     
     elif selected_section == "9. Visualisasi Hasil":
         if st.session_state.all_results is not None:
             visualize_results(st.session_state.all_results, st.session_state.accuracy_comparison)
         else:
-            st.warning("⚠️ Silakan latih model terlebih dahulu di section '8. Training & Evaluasi SVM'!")
+            st.warning("Silakan latih model terlebih dahulu di section '8. Training & Evaluasi SVM'!")
     
     elif selected_section == "10. Klasifikasi Kalimat Baru":
         if st.session_state.all_results is not None and st.session_state.tfidf_vectorizer is not None:
             st.session_state.best_model_info = classify_new_sentences(st.session_state.all_results, st.session_state.tfidf_vectorizer)
         else:
-            st.warning("⚠️ Silakan latih model terlebih dahulu di section '8. Training & Evaluasi SVM'!")
+            st.warning("Silakan latih model terlebih dahulu di section '8. Training & Evaluasi SVM'!")
     
     elif selected_section == "11. Statistik Final":
         if (st.session_state.df is not None and 
@@ -2059,18 +2046,12 @@ def main():
                 st.session_state.all_results
             )
         else:
-            st.warning("⚠️ Silakan selesaikan semua section sebelumnya terlebih dahulu!")
+            st.warning("Silakan selesaikan semua section sebelumnya terlebih dahulu!")
     
     # Footer
     st.sidebar.markdown("---")
     st.sidebar.info("""
-    **Analisis Sentimen Ulasan Gojek**
-    
-    **Fitur Baru:**
-    ✅ Analisis kalimat rancu
-    ✅ Deteksi kata negasi
-    ✅ Analisis konteks kalimat
-    ✅ Gabungan prediksi model & analisis manual
+    **Analisis Sentimen Ulasan Gojek 2025**
     """)
 
 if __name__ == "__main__":
