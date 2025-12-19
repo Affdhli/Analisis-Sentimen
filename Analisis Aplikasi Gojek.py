@@ -1960,7 +1960,7 @@ def main():
         "2. Analisis Jumlah Kata", 
         "3. Pelabelan Sentimen",
         "4. Preprocessing Text",
-        "5. WorldCloud",
+        "5. WordCloud",
         "6. Ekstraksi Fitur TF-IDF",
         "7. Pembagian Data",
         "8. Training & Evaluasi SVM",
