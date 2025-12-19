@@ -599,7 +599,7 @@ def text_preprocessing(df):
     
     return df
 
-def wordcloud(df):
+def create_wordcloud_viz(df):
     """Visualisasi wordcloud"""
     st.header("5. WORDCLOUD VISUALIZATION")
     
@@ -613,7 +613,7 @@ def wordcloud(df):
         return
     
     # Fungsi untuk membuat wordcloud
-    def wordcloud(text, title, color):
+    def create_wordcloud(text, title, color):
         if not text or len(text.strip()) == 0:
             st.warning(f"Tidak ada teks untuk {title}")
             return
