@@ -630,11 +630,11 @@ def create_wordcloud_viz(df):
         st.write("---")
     
     # Wordcloud untuk semua data
-    all_text = ' '.join(df['processed_text'].astype(str).tolist())
+    all_text = ' '.join(df['word_count_processed'].astype(str).tolist())
     create_wordcloud(all_text, 'WordCloud Semua Ulasan Gojek', 'steelblue')
     
     # Wordcloud untuk positif
-    positive_text = ' '.join(df[df['processed_text'] == 'positive']['processed_text'].astype(str).tolist())
+    positive_text = ' '.join(df[df['processed_text'] == 'positive']['word_count_processed'].astype(str).tolist())
     create_wordcloud(positive_text, 'WordCloud - Ulasan Positif', 'green')
     
     # Wordcloud untuk negatif
