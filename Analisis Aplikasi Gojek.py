@@ -1990,12 +1990,6 @@ def main():
         else:
             st.warning("Silakan upload data terlebih dahulu di section '1. Upload Data'!")
 
-    elif selected_section == "4. WordCloud":
-        if st.session_state.df is not None:
-            create_wordcloud_viz(st.session_state.df)
-        else:
-            st.warning("Silakan upload data terlebih dahulu di section '1. Upload Data'!")
-
     elif selected_section == "4. Preprocessing Text":
         if st.session_state.df is not None:
             st.session_state.df = text_preprocessing(st.session_state.df)
