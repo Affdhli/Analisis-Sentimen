@@ -600,47 +600,141 @@ def text_preprocessing(df):
     return df
 
 def create_wordcloud_viz(df):
-    """Visualisasi wordcloud"""
+    """Visualisasi wordcloud menggunakan teks yang sudah diproses"""
     st.header("5. WORDCLOUD VISUALIZATION")
+    
+    # Pastikan kolom yang diperlukan ada
+    if 'processed_text' not in df.columns:
+        st.error("Kolom 'processed_text' tidak ditemukan. Pastikan preprocessing telah dilakukan terlebih dahulu!")
+        return
+    
+    if 'sentiment_label' not in df.columns:
+        st.error("Kolom 'sentiment_label' tidak ditemukan!")
+        return
     
     # Fungsi untuk membuat wordcloud
     def create_wordcloud(text, title, color):
-        wordcloud = WordCloud(
-            width=800,
-            height=400,
-            background_color='white',
-            max_words=150,
-            contour_width=3,
-            contour_color=color,
-            colormap='viridis' if color != 'darkred' else 'Reds'
-        ).generate(text)
+        if not text or len(text.strip()) == 0:
+            st.warning(f"Tidak ada teks untuk {title}")
+            return
         
-        fig, ax = plt.subplots(figsize=(10, 5))
-        ax.imshow(wordcloud, interpolation='bilinear')
-        ax.axis('off')
-        ax.set_title(title, fontsize=16, pad=20)
-        st.pyplot(fig)
-        
-        # Hitung jumlah kata unik
-        words = text.split()
-        unique_words = set(words)
-        st.write(f"**{title}:**")
-        st.write(f"- Total kata: {len(words):,}")
-        st.write(f"- Kata unik: {len(unique_words):,}")
-        st.write("---")
+        try:
+            wordcloud = WordCloud(
+                width=800,
+                height=400,
+                background_color='white',
+                max_words=150,
+                contour_width=3,
+                contour_color=color,
+                colormap='viridis' if color != 'darkred' else 'Reds',
+                stopwords=None
+            ).generate(text)
+            
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.imshow(wordcloud, interpolation='bilinear')
+            ax.axis('off')
+            ax.set_title(title, fontsize=16, pad=20)
+            st.pyplot(fig)
+            
+            # Hitung statistik
+            words = text.split()
+            unique_words = set(words)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Total Kata", f"{len(words):,}")
+            with col2:
+                st.metric("Kata Unik", f"{len(unique_words):,}")
+            
+            # Tampilkan kata-kata yang paling sering muncul
+            if words:
+                from collections import Counter
+                word_freq = Counter(words)
+                top_words = word_freq.most_common(10)
+                
+                with st.expander("🔍 Lihat 10 kata paling sering muncul"):
+                    top_df = pd.DataFrame(top_words, columns=['Kata', 'Frekuensi'])
+                    st.dataframe(top_df)
+            
+            st.write("---")
+            
+        except Exception as e:
+            st.error(f"Error membuat wordcloud untuk {title}: {str(e)}")
     
-    # Wordcloud untuk semua data
-    all_text = ' '.join(df['word_count_processed'].astype(str).tolist())
-    create_wordcloud(all_text, 'WordCloud Semua Ulasan Gojek', 'steelblue')
+    # Wordcloud untuk semua data (menggunakan processed_text)
+    st.subheader("☁️ WordCloud Semua Ulasan (Teks Sudah Diproses)")
+    try:
+        all_text = ' '.join(df['processed_text'].astype(str).dropna().tolist())
+        if all_text.strip():
+            create_wordcloud(all_text, 'WordCloud Semua Ulasan Gojek (Setelah Preprocessing)', 'steelblue')
+        else:
+            st.warning("Tidak ada teks yang tersedia untuk semua ulasan")
+    except Exception as e:
+        st.error(f"Error memproses semua data: {str(e)}")
     
     # Wordcloud untuk positif
-    positive_text = ' '.join(df[df['processed_text'] == 'positive']['word_count_processed'].astype(str).tolist())
-    create_wordcloud(positive_text, 'WordCloud - Ulasan Positif', 'green')
+    st.subheader("WordCloud Ulasan Positif")
+    try:
+        positive_mask = df['sentiment_label'] == 'positive'
+        if positive_mask.any():
+            positive_text = ' '.join(df[positive_mask]['processed_text'].astype(str).dropna().tolist())
+            if positive_text.strip():
+                create_wordcloud(positive_text, 'WordCloud - Ulasan Positif (Setelah Preprocessing)', 'green')
+            else:
+                st.warning("Tidak ada teks yang tersedia untuk ulasan positif")
+        else:
+            st.warning("Tidak ada data dengan label 'positive'")
+    except Exception as e:
+        st.error(f"Error memproses data positif: {str(e)}")
     
     # Wordcloud untuk negatif
-    negative_text = ' '.join(df[df['processed_text'] == 'negative']['word_count_processed'].astype(str).tolist())
-    create_wordcloud(negative_text, 'WordCloud - Ulasan Negatif', 'darkred')
-
+    st.subheader("WordCloud Ulasan Negatif")
+    try:
+        negative_mask = df['sentiment_label'] == 'negative'
+        if negative_mask.any():
+            negative_text = ' '.join(df[negative_mask]['processed_text'].astype(str).dropna().tolist())
+            if negative_text.strip():
+                create_wordcloud(negative_text, 'WordCloud - Ulasan Negatif (Setelah Preprocessing)', 'darkred')
+            else:
+                st.warning("Tidak ada teks yang tersedia untuk ulasan negatif")
+        else:
+            st.warning("Tidak ada data dengan label 'negative'")
+    except Exception as e:
+        st.error(f"Error memproses data negatif: {str(e)}")
+    
+    # Analisis tambahan: perbandingan teks asli vs diproses
+    st.subheader("Perbandingan WordCloud: Sebelum vs Sesudah Preprocessing")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.write("**Sebelum Preprocessing:**")
+        try:
+            original_positive = ' '.join(df[positive_mask]['content'].astype(str).dropna().tolist()) if positive_mask.any() else ""
+            if original_positive.strip():
+                st.write(f"- Kata unik positif: {len(set(original_positive.split())):,}")
+                st.write(f"- Total kata positif: {len(original_positive.split()):,}")
+        except:
+            pass
+    
+    with col2:
+        st.write("**Setelah Preprocessing:**")
+        try:
+            processed_positive = ' '.join(df[positive_mask]['processed_text'].astype(str).dropna().tolist()) if positive_mask.any() else ""
+            if processed_positive.strip():
+                st.write(f"- Kata unik positif: {len(set(processed_positive.split())):,}")
+                st.write(f"- Total kata positif: {len(processed_positive.split()):,}")
+        except:
+            pass
+    
+    # Tampilkan contoh teks sebelum dan sesudah
+    with st.expander("Contoh Teks Sebelum dan Sesudah Preprocessing"):
+        sample_idx = 0
+        if len(df) > 0:
+            st.write("**Contoh Ulasan:**")
+            st.write(f"**Asli:** {df['content'].iloc[sample_idx][:100]}...")
+            st.write(f"**Diproses:** {df['processed_text'].iloc[sample_idx][:100]}...")
+            st.write(f"**Reduksi kata:** {len(df['content'].iloc[sample_idx].split()) - len(df['processed_text'].iloc[sample_idx].split())} kata")
 
 def tfidf_feature_extraction(df):
     """Ekstraksi fitur TF-IDF"""
