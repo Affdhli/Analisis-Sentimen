@@ -1941,8 +1941,8 @@ def main():
         "1. Upload Data",
         "2. Analisis Jumlah Kata", 
         "3. Pelabelan Sentimen",
-        "4. WordCloud",
-        "5. Preprocessing Text",
+        "4. Preprocessing Text",
+        "5. WorldCloud",
         "6. Ekstraksi Fitur TF-IDF",
         "7. Pembagian Data",
         "8. Training & Evaluasi SVM",
@@ -1988,16 +1988,16 @@ def main():
             st.session_state.df, st.session_state.sentiment_distribution = lexicon_sentiment_labeling(st.session_state.df)
         else:
             st.warning("Silakan upload data terlebih dahulu di section '1. Upload Data'!")
-    
-    elif selected_section == "4. WordCloud":
+
+    elif selected_section == "4. Preprocessing Text":
         if st.session_state.df is not None:
-            create_wordcloud_viz(st.session_state.df)
+            st.session_state.df = text_preprocessing(st.session_state.df)
         else:
             st.warning("Silakan upload data terlebih dahulu di section '1. Upload Data'!")
     
-    elif selected_section == "5. Preprocessing Text":
+    elif selected_section == "5. WordCloud":
         if st.session_state.df is not None:
-            st.session_state.df = text_preprocessing(st.session_state.df)
+            create_wordcloud_viz(st.session_state.df)
         else:
             st.warning("Silakan upload data terlebih dahulu di section '1. Upload Data'!")
     
