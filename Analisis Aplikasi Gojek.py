@@ -605,6 +605,19 @@ def create_wordcloud_viz(df):
     
     # Fungsi untuk membuat wordcloud
     def create_wordcloud(text, title, color):
+        # Cek jika text kosong atau terlalu pendek
+        if not text or len(text.strip()) < 10:
+            st.warning(f"Tidak ada teks yang cukup untuk membuat WordCloud '{title}'")
+            
+            # Buat figure kosong
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.text(0.5, 0.5, f'Tidak ada data untuk\n{title}', 
+                    horizontalalignment='center', verticalalignment='center',
+                    transform=ax.transAxes, fontsize=14)
+            ax.axis('off')
+            st.pyplot(fig)
+            return
+        
         wordcloud = WordCloud(
             width=800,
             height=400,
@@ -629,17 +642,22 @@ def create_wordcloud_viz(df):
         st.write(f"- Kata unik: {len(unique_words):,}")
         st.write("---")
     
-    # Wordcloud untuk semua data
-    all_text = ' '.join(df['processed_text'].astype(str).tolist())
-    create_wordcloud(all_text, 'WordCloud Semua Ulasan Gojek', 'steelblue')
-    
-    # Wordcloud untuk positif
-    positive_text = ' '.join(df[df['word_count_processed'] == 'positive']['processed_text'].astype(str).tolist())
-    create_wordcloud(positive_text, 'WordCloud - Ulasan Positif', 'green')
-    
-    # Wordcloud untuk negatif
-    negative_text = ' '.join(df[df['word_count_processed'] == 'negative']['processed_text'].astype(str).tolist())
-    create_wordcloud(negative_text, 'WordCloud - Ulasan Negatif', 'darkred')
+    try:
+        # Wordcloud untuk semua data
+        all_text = ' '.join(df['processed_text'].astype(str).tolist())
+        create_wordcloud(all_text, 'WordCloud Semua Ulasan Gojek', 'steelblue')
+        
+        # Wordcloud untuk positif - PERBAIKAN DI SINI
+        positive_text = ' '.join(df[df['sentiment_label'] == 'positive']['processed_text'].astype(str).tolist())
+        create_wordcloud(positive_text, 'WordCloud - Ulasan Positif', 'green')
+        
+        # Wordcloud untuk negatif - PERBAIKAN DI SINI
+        negative_text = ' '.join(df[df['sentiment_label'] == 'negative']['processed_text'].astype(str).tolist())
+        create_wordcloud(negative_text, 'WordCloud - Ulasan Negatif', 'darkred')
+        
+    except Exception as e:
+        st.error(f"Error membuat WordCloud: {str(e)}")
+        st.info("Pastikan data telah diproses dengan benar pada section sebelumnya.")
 
 def tfidf_feature_extraction(df):
     """Ekstraksi fitur TF-IDF"""
