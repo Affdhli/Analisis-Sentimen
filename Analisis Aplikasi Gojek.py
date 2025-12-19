@@ -92,7 +92,7 @@ def upload_data():
                         st.write(f"- Jumlah kolom: {len(df.columns)}")
                 
             except Exception as e:
-                st.error(f"❌ Error membaca file: {str(e)}")
+                st.error(f"Error membaca file: {str(e)}")
                 return None
     
     else:  # Gunakan data contoh
@@ -586,10 +586,10 @@ def text_preprocessing(df):
     with col2:
         st.metric("Setelah preprocessing", f"{after_total:,} kata")
     
-    st.info(f"📉 Pengurangan: {reduction:,} kata ({reduction_pct:.1f}%)")
+    st.info(f"Pengurangan: {reduction:,} kata ({reduction_pct:.1f}%)")
     
     # Contoh hasil preprocessing
-    st.subheader("📝 CONTOH HASIL PREPROCESSING:")
+    st.subheader("CONTOH HASIL PREPROCESSING:")
     
     sample_idx = 0
     st.write(f"**Original:** {df['content'].iloc[sample_idx][:100]}...")
@@ -599,7 +599,7 @@ def text_preprocessing(df):
     
     return df
 
-def create_wordcloud_viz(df):
+def wordcloud(df):
     """Visualisasi wordcloud"""
     st.header("5. WORDCLOUD VISUALIZATION")
     
@@ -613,7 +613,7 @@ def create_wordcloud_viz(df):
         return
     
     # Fungsi untuk membuat wordcloud
-    def create_wordcloud(text, title, color):
+    def wordcloud(text, title, color):
         if not text or len(text.strip()) == 0:
             st.warning(f"Tidak ada teks untuk {title}")
             return
