@@ -603,43 +603,164 @@ def create_wordcloud_viz(df):
     """Visualisasi wordcloud"""
     st.header("5. WORDCLOUD VISUALIZATION")
     
+    # Pastikan kolom yang diperlukan ada
+    if 'content' not in df.columns:
+        st.error("Kolom 'content' tidak ditemukan dalam data!")
+        return
+    
+    if 'sentiment_label' not in df.columns:
+        st.error("Kolom 'sentiment_label' tidak ditemukan dalam data!")
+        return
+    
     # Fungsi untuk membuat wordcloud
     def create_wordcloud(text, title, color):
-        wordcloud = WordCloud(
-            width=800,
-            height=400,
-            background_color='white',
-            max_words=150,
-            contour_width=3,
-            contour_color=color,
-            colormap='viridis' if color != 'darkred' else 'Reds'
-        ).generate(text)
+        if not text or len(text.strip()) == 0:
+            st.warning(f"Tidak ada teks untuk {title}")
+            return
         
-        fig, ax = plt.subplots(figsize=(10, 5))
-        ax.imshow(wordcloud, interpolation='bilinear')
-        ax.axis('off')
-        ax.set_title(title, fontsize=16, pad=20)
-        st.pyplot(fig)
-        
-        # Hitung jumlah kata unik
-        words = text.split()
-        unique_words = set(words)
-        st.write(f"**{title}:**")
-        st.write(f"- Total kata: {len(words):,}")
-        st.write(f"- Kata unik: {len(unique_words):,}")
-        st.write("---")
+        try:
+            wordcloud = WordCloud(
+                width=800,
+                height=400,
+                background_color='white',
+                max_words=150,
+                contour_width=3,
+                contour_color=color,
+                colormap='viridis' if color != 'darkred' else 'Reds',
+                stopwords=None  # Tambahkan stopwords jika perlu
+            ).generate(text)
+            
+            fig, ax = plt.subplots(figsize=(10, 5))
+            ax.imshow(wordcloud, interpolation='bilinear')
+            ax.axis('off')
+            ax.set_title(title, fontsize=16, pad=20)
+            st.pyplot(fig)
+            
+            # Hitung statistik
+            words = text.split()
+            unique_words = set(words)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Total Kata", f"{len(words):,}")
+            with col2:
+                st.metric("Kata Unik", f"{len(unique_words):,}")
+            
+            # Tampilkan kata-kata yang paling sering muncul
+            if words:
+                from collections import Counter
+                word_freq = Counter(words)
+                top_words = word_freq.most_common(10)
+                
+                with st.expander("Lihat 10 kata paling sering muncul"):
+                    top_df = pd.DataFrame(top_words, columns=['Kata', 'Frekuensi'])
+                    st.dataframe(top_df)
+            
+            st.write("---")
+            
+        except Exception as e:
+            st.error(f"Error membuat wordcloud untuk {title}: {str(e)}")
     
     # Wordcloud untuk semua data
-    all_text = ' '.join(df['content'].astype(str).tolist())
-    create_wordcloud(all_text, 'WordCloud Semua Ulasan Gojek', 'steelblue')
+    st.subheader("WordCloud Semua Ulasan")
+    try:
+        all_text = ' '.join(df['content'].astype(str).dropna().tolist())
+        if all_text.strip():
+            create_wordcloud(all_text, 'WordCloud Semua Ulasan Gojek', 'steelblue')
+        else:
+            st.warning("Tidak ada teks yang tersedia untuk semua ulasan")
+    except Exception as e:
+        st.error(f"Error memproses semua data: {str(e)}")
     
     # Wordcloud untuk positif
-    positive_text = ' '.join(df[df['sentiment_label'] == 'positive']['content'].astype(str).tolist())
-    create_wordcloud(positive_text, 'WordCloud - Ulasan Positif', 'green')
+    st.subheader("WordCloud Ulasan Positif")
+    try:
+        positive_mask = df['sentiment_label'] == 'positive'
+        if positive_mask.any():
+            positive_text = ' '.join(df[positive_mask]['content'].astype(str).dropna().tolist())
+            if positive_text.strip():
+                create_wordcloud(positive_text, 'WordCloud - Ulasan Positif', 'green')
+            else:
+                st.warning("Tidak ada teks yang tersedia untuk ulasan positif")
+        else:
+            st.warning("Tidak ada data dengan label 'positive'")
+    except Exception as e:
+        st.error(f"Error memproses data positif: {str(e)}")
     
     # Wordcloud untuk negatif
-    negative_text = ' '.join(df[df['sentiment_label'] == 'negative']['content'].astype(str).tolist())
-    create_wordcloud(negative_text, 'WordCloud - Ulasan Negatif', 'darkred')
+    st.subheader("WordCloud Ulasan Negatif")
+    try:
+        negative_mask = df['sentiment_label'] == 'negative'
+        if negative_mask.any():
+            negative_text = ' '.join(df[negative_mask]['content'].astype(str).dropna().tolist())
+            if negative_text.strip():
+                create_wordcloud(negative_text, 'WordCloud - Ulasan Negatif', 'darkred')
+            else:
+                st.warning("Tidak ada teks yang tersedia untuk ulasan negatif")
+        else:
+            st.warning("Tidak ada data dengan label 'negative'")
+    except Exception as e:
+        st.error(f"Error memproses data negatif: {str(e)}")
+    
+    # Analisis tambahan: frekuensi kata per kategori
+    st.subheader("Analisis Frekuensi Kata")
+    
+    # Buat analisis frekuensi kata
+    try:
+        if 'processed_text' in df.columns:
+            # Analisis untuk positif
+            if positive_mask.any():
+                positive_tokens = ' '.join(df[positive_mask]['processed_text'].astype(str).dropna().tolist()).split()
+                positive_freq = Counter(positive_tokens).most_common(15)
+                
+                # Analisis untuk negatif
+                negative_tokens = ' '.join(df[negative_mask]['processed_text'].astype(str).dropna().tolist()).split()
+                negative_freq = Counter(negative_tokens).most_common(15)
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.write("**Kata Paling Sering - Positif**")
+                    pos_df = pd.DataFrame(positive_freq, columns=['Kata', 'Frekuensi'])
+                    st.dataframe(pos_df)
+                
+                with col2:
+                    st.write("**Kata Paling Sering - Negatif**")
+                    neg_df = pd.DataFrame(negative_freq, columns=['Kata', 'Frekuensi'])
+                    st.dataframe(neg_df)
+                
+                # Visualisasi perbandingan
+                fig, ax = plt.subplots(figsize=(12, 6))
+                
+                # Ambil top 10 dari masing-masing
+                top_pos_words = [word for word, _ in positive_freq[:10]]
+                top_pos_freq = [freq for _, freq in positive_freq[:10]]
+                
+                top_neg_words = [word for word, _ in negative_freq[:10]]
+                top_neg_freq = [freq for _, freq in negative_freq[:10]]
+                
+                x = np.arange(10)
+                width = 0.35
+                
+                ax.bar(x - width/2, top_pos_freq, width, label='Positif', color='#2ecc71', alpha=0.7)
+                ax.bar(x + width/2, top_neg_freq, width, label='Negatif', color='#e74c3c', alpha=0.7)
+                
+                ax.set_xlabel('Peringkat Kata')
+                ax.set_ylabel('Frekuensi')
+                ax.set_title('Perbandingan Frekuensi Kata Top 10 (Positif vs Negatif)')
+                ax.set_xticks(x)
+                ax.set_xticklabels(range(1, 11))
+                ax.legend()
+                ax.grid(True, alpha=0.3)
+                
+                plt.tight_layout()
+                st.pyplot(fig)
+                
+        else:
+            st.info("Kolom 'processed_text' tidak ditemukan. Analisis frekuensi kata menggunakan teks asli.")
+            
+    except Exception as e:
+        st.warning(f"Tidak dapat melakukan analisis frekuensi kata: {str(e)}")
 
 def tfidf_feature_extraction(df):
     """Ekstraksi fitur TF-IDF"""
