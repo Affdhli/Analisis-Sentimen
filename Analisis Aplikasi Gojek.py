@@ -43,156 +43,53 @@ def upload_data():
     """Fungsi untuk upload data"""
     st.header("1. UPLOAD DATA")
     
-    # Pilihan upload atau gunakan data contoh
-    option = st.radio(
-        "Pilih sumber data:",
-        ["Upload file CSV", "Gunakan data contoh"]
+    # Hanya menyediakan opsi upload file
+    st.info("Silakan upload file CSV yang berisi data ulasan Gojek")
+    
+    uploaded_file = st.file_uploader(
+        "Upload file CSV dengan kolom 'content' (dan 'sentimen' jika ada)", 
+        type=['csv']
     )
     
     df = None
     
-    if option == "Upload file CSV":
-        uploaded_file = st.file_uploader(
-            "Upload file CSV dengan kolom 'content' (dan 'sentimen' jika ada)", 
-            type=['csv']
-        )
-        
-        if uploaded_file is not None:
-            try:
-                # Baca file
-                df = pd.read_csv(uploaded_file)
-                st.success(f"File berhasil diupload: {uploaded_file.name}")
-                
-                # Validasi kolom
-                if 'content' not in df.columns:
-                    st.error("File harus memiliki kolom 'content'")
-                    return None
-                
-                # Ambil 8000 data pertama jika lebih
-                max_data = 8000
-                original_count = len(df)
-                
-                if len(df) > max_data:
-                    df = df.head(max_data)
-                    st.info(f"Mengambil {max_data} data pertama dari total {original_count} data")
-                else:
-                    st.info(f"Menggunakan semua data yang tersedia: {len(df)} data")
-                
-                # Tampilkan preview
-                with st.expander("Preview Data"):
-                    st.dataframe(df.head())
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.write("**Informasi kolom:**")
-                        st.write(df.columns.tolist())
-                    with col2:
-                        st.write("**Statistik data:**")
-                        st.write(f"- Jumlah baris: {len(df)}")
-                        st.write(f"- Jumlah kolom: {len(df.columns)}")
-                
-            except Exception as e:
-                st.error(f"Error membaca file: {str(e)}")
+    if uploaded_file is not None:
+        try:
+            # Baca file
+            df = pd.read_csv(uploaded_file)
+            st.success(f"File berhasil diupload: {uploaded_file.name}")
+            
+            # Validasi kolom
+            if 'content' not in df.columns:
+                st.error("File harus memiliki kolom 'content'")
                 return None
-    
-    else:  # Gunakan data contoh
-        st.info("Membuat data contoh 8000 baris...")
-        
-        # Buat data contoh 8000 baris
-        np.random.seed(42)
-        
-        # Contoh kalimat positif
-        positive_samples = [
-            "aplikasi gojek sangat bagus dan mudah digunakan",
-            "driver ramah dan cepat sampai tujuan",
-            "pelayanan memuaskan harga terjangkau",
-            "mantap banget recommended untuk semua",
-            "proses pesan cepat tidak ada kendala",
-            "aplikasi user friendly interface menarik",
-            "driver sopan dan mengutamakan keselamatan",
-            "fitur lengkap sangat membantu sehari-hari",
-            "responsif dan mudah dioperasikan",
-            "pengalaman menggunakan sangat menyenangkan",
-            "tidak terlalu mahal",
-            "kurang begitu mahal",
-            "harga lumayan murah",
-            "cukup terjangkau",
-            "tidak buruk juga"
-        ]
-        
-        # Contoh kalimat negatif
-        negative_samples = [
-            "aplikasi sering error tidak stabil",
-            "driver lambat dan tidak profesional",
-            "pelayanan buruk sangat mengecewakan",
-            "harga mahal tidak sesuai pelayanan",
-            "sering terjadi masalah teknis",
-            "customer service tidak responsif",
-            "waiting time terlalu lama",
-            "aplikasi lemot dan sering crash",
-            "driver tidak tahu jalan tersesat",
-            "pengalaman buruk tidak akan pakai lagi",
-            "tidak terlalu bagus",
-            "kurang memuaskan",
-            "cukup mengecewakan",
-            "tidak sebaik yang diharapkan"
-        ]
-        
-        # Contoh kalimat netral/ambigu
-        ambiguous_samples = [
-            "harga standar seperti biasa",
-            "lumayan lah untuk transportasi",
-            "biasa saja tidak istimewa",
-            "cukup untuk kebutuhan sehari-hari",
-            "tidak ada yang spesial"
-        ]
-        
-        # Generate 8000 data
-        n_samples = 8000
-        data_content = []
-        data_sentiment = []
-        
-        for i in range(n_samples):
-            rand_val = np.random.random()
             
-            if rand_val > 0.45:  # 55% positif
-                base_text = np.random.choice(positive_samples)
-                sentiment = 'positif'
-            elif rand_val > 0.15:  # 30% negatif
-                base_text = np.random.choice(negative_samples)
-                sentiment = 'negatif'
-            else:  # 15% ambigu
-                base_text = np.random.choice(ambiguous_samples)
-                # Untuk data ambigu, random pilih positif atau negatif
-                sentiment = 'positif' if np.random.random() > 0.5 else 'negatif'
+            # Ambil 8000 data pertama jika lebih
+            max_data = 8000
+            original_count = len(df)
             
-            # Tambah variasi teks
-            variations = [
-                "", "sangat", "sekali", "banget", "saya rasa", "menurut saya",
-                "pengalaman pribadi", "baru saja mencoba", "setelah update",
-                "sebenarnya", "mungkin", "agak", "sedikit"
-            ]
-            variation = np.random.choice(variations)
-            
-            if variation:
-                content = f"{variation} {base_text}"
+            if len(df) > max_data:
+                df = df.head(max_data)
+                st.info(f"Mengambil {max_data} data pertama dari total {original_count} data")
             else:
-                content = base_text
+                st.info(f"Menggunakan semua data yang tersedia: {len(df)} data")
+            
+            # Tampilkan preview
+            with st.expander("Preview Data"):
+                st.dataframe(df.head())
                 
-            data_content.append(content)
-            data_sentiment.append(sentiment)
-        
-        # Buat DataFrame
-        df = pd.DataFrame({
-            'content': data_content,
-            'sentimen': data_sentiment
-        })
-        
-        st.success(f"Data contoh berhasil dibuat: {len(df)} baris")
-        
-        # Tampilkan preview
-        with st.expander("Preview Data Contoh"):
-            st.dataframe(df.head())
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write("**Informasi kolom:**")
+                    st.write(df.columns.tolist())
+                with col2:
+                    st.write("**Statistik data:**")
+                    st.write(f"- Jumlah baris: {len(df)}")
+                    st.write(f"- Jumlah kolom: {len(df.columns)}")
+            
+        except Exception as e:
+            st.error(f"Error membaca file: {str(e)}")
+            return None
     
     if df is not None:
         # Hitung statistik dasar
@@ -252,8 +149,8 @@ def upload_data():
     return df
 
 def analyze_word_count(df):
-    """Analisis jumlah kata"""
-    st.header("2. ANALISIS JUMLAH KATA DARI 8000 ULASAN")
+    """Analisis jumlah kata - HANYA GRAFIK"""
+    st.header("2. ANALISIS JUMLAH KATA DARI ULASAN")
     
     # Fungsi untuk menghitung jumlah kata
     def count_words(text):
@@ -261,11 +158,11 @@ def analyze_word_count(df):
             return 0
         return len(text.split())
     
-    # Hitung jumlah kata untuk semua 8000 ulasan
+    # Hitung jumlah kata untuk semua ulasan
     df['word_count'] = df['content'].apply(count_words)
     
-    # Tampilkan statistik
-    st.subheader("STATISTIK JUMLAH KATA (8000 ULASAN):")
+    # Tampilkan statistik singkat
+    st.subheader("STATISTIK JUMLAH KATA:")
     
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -275,32 +172,20 @@ def analyze_word_count(df):
     with col3:
         st.metric("Median Kata per Ulasan", f"{df['word_count'].median():.1f} kata")
     
-    col4, col5 = st.columns(2)
-    with col4:
-        st.metric("Ulasan Terpendek", f"{df['word_count'].min()} kata")
-    with col5:
-        st.metric("Ulasan Terpanjang", f"{df['word_count'].max()} kata")
-    
-    # Visualisasi
+    # HANYA MENAMPILKAN GRAFIK - HAPUS BOX PLOT
     st.subheader("Visualisasi Distribusi")
     
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    fig, ax = plt.subplots(figsize=(10, 5))
     
-    # Histogram
-    axes[0].hist(df['word_count'], bins=50, edgecolor='black', alpha=0.7)
-    axes[0].axvline(df['word_count'].mean(), color='red', linestyle='dashed', 
-                    linewidth=2, label=f'Rata-rata: {df["word_count"].mean():.1f}')
-    axes[0].set_xlabel('Jumlah Kata')
-    axes[0].set_ylabel('Frekuensi')
-    axes[0].set_title('Distribusi Jumlah Kata per Ulasan (8000 data)')
-    axes[0].legend()
-    axes[0].grid(True, alpha=0.3)
-    
-    # Box plot
-    axes[1].boxplot(df['word_count'])
-    axes[1].set_ylabel('Jumlah Kata')
-    axes[1].set_title('Box Plot Jumlah Kata')
-    axes[1].grid(True, alpha=0.3)
+    # Histogram saja
+    ax.hist(df['word_count'], bins=50, edgecolor='black', alpha=0.7, color='skyblue')
+    ax.axvline(df['word_count'].mean(), color='red', linestyle='dashed', 
+                linewidth=2, label=f'Rata-rata: {df["word_count"].mean():.1f}')
+    ax.set_xlabel('Jumlah Kata')
+    ax.set_ylabel('Frekuensi')
+    ax.set_title('Distribusi Jumlah Kata per Ulasan')
+    ax.legend()
+    ax.grid(True, alpha=0.3)
     
     plt.tight_layout()
     st.pyplot(fig)
@@ -308,7 +193,7 @@ def analyze_word_count(df):
     return df
 
 def lexicon_sentiment_labeling(df):
-    """Pelabelan sentimen dengan lexicon"""
+    """Pelabelan sentimen dengan lexicon - HANYA GRAFIK"""
     st.header("3. PELABELAN SENTIMEN MENGGUNAKAN LEXICON")
     
     # Lexicon yang diperluas untuk Bahasa Indonesia dengan penanganan kalimat rancu
@@ -445,43 +330,14 @@ def lexicon_sentiment_labeling(df):
     sentiment_distribution = df['sentiment_label'].value_counts()
     total_data = len(df)
     
-    # Tampilkan statistik
+    # Tampilkan statistik singkat
     st.success(f"Pelabelan selesai: {total_data} ulasan")
     
-    st.subheader("DISTRIBUSI SENTIMEN (BINARY - HANYA POSITIF/NEGATIF):")
+    # HANYA MENAMPILKAN GRAFIK - HAPUS ANALISIS STATISTIK TABEL
+    st.subheader("HASIL PELABELAN SENTIMEN:")
     
-    col1, col2 = st.columns(2)
-    with col1:
-        positif_count = sentiment_distribution.get('positive', 0)
-        positif_pct = (positif_count/total_data*100) if total_data > 0 else 0
-        st.metric("Positif", f"{positif_count:,}", f"({positif_pct:.1f}%)")
-    with col2:
-        negatif_count = sentiment_distribution.get('negative', 0)
-        negatif_pct = (negatif_count/total_data*100) if total_data > 0 else 0
-        st.metric("Negatif", f"{negatif_count:,}", f"({negatif_pct:.1f}%)")
-    
-    # Analisis jumlah kata per kategori
-    positive_word_counts = df[df['sentiment_label'] == 'positive']['word_count']
-    negative_word_counts = df[df['sentiment_label'] == 'negative']['word_count']
-    
-    st.subheader("ANALISIS JUMLAH KATA PER KATEGORI:")
-    
-    col_pos, col_neg = st.columns(2)
-    
-    with col_pos:
-        st.write("**POSITIF:**")
-        st.write(f"Total kata: {positive_word_counts.sum():,} kata")
-        st.write(f"Rata-rata: {positive_word_counts.mean():.1f} kata/ulasan")
-        st.write(f"Median: {positive_word_counts.median():.1f} kata")
-    
-    with col_neg:
-        st.write("**NEGATIF:**")
-        st.write(f"Total kata: {negative_word_counts.sum():,} kata")
-        st.write(f"Rata-rata: {negative_word_counts.mean():.1f} kata/ulasan")
-        st.write(f"Median: {negative_word_counts.median():.1f} kata")
-    
-    # Visualisasi
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    # Visualisasi grafik saja
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
     
     # Pie chart distribusi sentimen
     sentiment_counts = df['sentiment_label'].value_counts()
@@ -497,16 +353,6 @@ def lexicon_sentiment_labeling(df):
     axes[1].set_title('Jumlah Ulasan per Kategori')
     for i, v in enumerate(sentiment_counts.values):
         axes[1].text(i, v + max(sentiment_counts.values)*0.01, str(v), ha='center')
-    
-    # Box plot jumlah kata per sentimen
-    box_data = [positive_word_counts, negative_word_counts]
-    axes[2].boxplot(box_data, labels=['Positif', 'Negatif'], patch_artist=True,
-                    boxprops=dict(facecolor='lightblue', color='blue'),
-                    medianprops=dict(color='red'))
-    axes[2].set_xlabel('Sentimen')
-    axes[2].set_ylabel('Jumlah Kata')
-    axes[2].set_title('Distribusi Jumlah Kata per Sentimen')
-    axes[2].grid(True, alpha=0.3)
     
     plt.tight_layout()
     st.pyplot(fig)
