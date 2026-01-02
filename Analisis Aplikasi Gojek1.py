@@ -605,7 +605,7 @@ def data_splitting(X, y):
     return results
 
 def train_evaluate_svm(results):
-    """Training dan evaluasi model SVM"""
+    """Training dan evaluasi model SVM - Versi Streamlit"""
     st.header("8. TRAINING DAN EVALUASI MODEL SVM")
     st.write("="*60)
     
@@ -933,7 +933,7 @@ def train_evaluate_svm(results):
         # Plot 1: Perbandingan akurasi keseluruhan
         ax1 = axes[0, 0]
         sns.barplot(data=vis_df, x='Rasio', y='Akurasi_Keseluruhan', hue='Kernel', ax=ax1)
-        ax1.set_title('Akurasi Keseluruhan per Rasio dan Kernel\n(C={selected_c})')
+        ax1.set_title(f'Akurasi Keseluruhan per Rasio dan Kernel\n(C={selected_c})')
         ax1.set_ylabel('Akurasi')
         ax1.set_ylim(0, 1.0)
         ax1.legend(title='Kernel')
@@ -946,7 +946,7 @@ def train_evaluate_svm(results):
         # Plot 2: Perbandingan akurasi negatif
         ax2 = axes[0, 1]
         sns.barplot(data=vis_df, x='Rasio', y='Akurasi_Negatif', hue='Kernel', ax=ax2)
-        ax2.set_title('Akurasi Kelas Negatif per Rasio dan Kernel\n(C={selected_c})')
+        ax2.set_title(f'Akurasi Kelas Negatif per Rasio dan Kernel\n(C={selected_c})')
         ax2.set_ylabel('Akurasi')
         ax2.set_ylim(0, 1.0)
         ax2.legend(title='Kernel')
@@ -959,7 +959,7 @@ def train_evaluate_svm(results):
         # Plot 3: Perbandingan akurasi positif
         ax3 = axes[1, 0]
         sns.barplot(data=vis_df, x='Rasio', y='Akurasi_Positif', hue='Kernel', ax=ax3)
-        ax3.set_title('Akurasi Kelas Positif per Rasio dan Kernel\n(C={selected_c})')
+        ax3.set_title(f'Akurasi Kelas Positif per Rasio dan Kernel\n(C={selected_c})')
         ax3.set_ylabel('Akurasi')
         ax3.set_ylim(0, 1.0)
         ax3.legend(title='Kernel')
@@ -973,7 +973,7 @@ def train_evaluate_svm(results):
         ax4 = axes[1, 1]
         vis_df['Selisih_Akurasi'] = vis_df['Akurasi_Positif'] - vis_df['Akurasi_Negatif']
         sns.barplot(data=vis_df, x='Rasio', y='Selisih_Akurasi', hue='Kernel', ax=ax4)
-        ax4.set_title('Selisih Akurasi (Positif - Negatif) per Rasio dan Kernel\n(C={selected_c})')
+        ax4.set_title(f'Selisih Akurasi (Positif - Negatif) per Rasio dan Kernel\n(C={selected_c})')
         ax4.set_ylabel('Selisih Akurasi')
         ax4.axhline(y=0, color='black', linestyle='-', linewidth=0.5)
         ax4.legend(title='Kernel')
