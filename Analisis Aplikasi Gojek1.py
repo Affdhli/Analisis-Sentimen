@@ -149,7 +149,7 @@ def upload_data():
     return df
 
 def analyze_word_count(df):
-    """Analisis jumlah kata - HANYA GRAFIK"""
+    """Analisis jumlah kata"""
     st.header("2. ANALISIS JUMLAH KATA DARI ULASAN")
     
     # Fungsi untuk menghitung jumlah kata
