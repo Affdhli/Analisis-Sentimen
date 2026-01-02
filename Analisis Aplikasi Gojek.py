@@ -1452,7 +1452,7 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
         
         # Jika ada negasi dan ada kata target, prioritaskan analisis manual
         if has_negation and target_words_in_text:
-            st.info(f"🔍 Ditemukan negasi pada kata: {', '.join(target_words_in_text)}")
+            st.info(f"Ditemukan negasi pada kata: {', '.join(target_words_in_text)}")
             
             # Untuk pola seperti "tidak mahal", "kurang begitu mahal" → POSITIF
             if any(word in ['mahal', 'buruk', 'jelek'] for word in target_words_in_text):
@@ -1468,37 +1468,8 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
         else:
             # Jika analisis manual lemah, gunakan model
             return 'POSITIF' if model_prediction == 1 else 'NEGATIF'
+
     
-    # Contoh kalimat untuk diklasifikasikan (dengan fokus pada kalimat negasi)
-    st.subheader("KLASIFIKASI KALIMAT CONTOH")
-    
-    test_sentences = [
-        "aplikasi gojek sangat bagus dan membantu sekali",
-        "pelayanan buruk, driver tidak profesional",
-        "sangat cepat dan murah, saya suka",
-        "aplikasi sering error dan sulit digunakan",
-        "driver ramah dan perjalanan nyaman",
-        "waktu tunggu terlalu lama dan mahal",
-        # Kalimat negasi yang harus menjadi positif
-        "tidak begitu mahal",           # Harus: POSITIF
-        "kurang begitu mahal",          # Harus: POSITIF  
-        "tidak terlalu mahal",          # Harus: POSITIF
-        "tidak buruk juga",             # Harus: POSITIF
-        "tidak jelek",                  # Harus: POSITIF
-        "tidak lambat",                 # Harus: POSITIF
-        # Kalimat negasi yang harus menjadi negatif
-        "tidak terlalu bagus",          # Harus: NEGATIF
-        "kurang memuaskan",             # Harus: NEGATIF
-        "tidak begitu baik",            # Harus: NEGATIF
-        "belum puas",                   # Harus: NEGATIF
-        # Kalimat moderasi
-        "lumayan murah",                # Harus: POSITIF
-        "cukup terjangkau",             # Harus: POSITIF
-        "agak mahal",                   # Harus: NEGATIF
-        "sedikit lambat"                # Harus: NEGATIF
-    ]
-    
-    results_list = []
     for i, sentence in enumerate(test_sentences, 1):
         sentiment, processed_text, wc_original, wc_processed, manual_score, manual_sentiment = predict_sentiment_with_context(
             sentence, 
@@ -1530,7 +1501,7 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
     st.table(results_df[['No', 'Kalimat', 'Kategori', 'Jml Kata', 'Hasil', 'Skor Manual', 'Analisis Manual', 'Warna']])
     
     # Analisis khusus untuk kalimat negasi
-    st.subheader("🔍 ANALISIS DETAIL KALIMAT NEGASI")
+    st.subheader("ANALISIS DETAIL KALIMAT NEGASI")
     
     negation_sentences = [s for s in test_sentences if any(word in s.lower() for word in ['tidak', 'kurang', 'bukan', 'belum'])]
     
