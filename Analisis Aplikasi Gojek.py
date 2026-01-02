@@ -1452,7 +1452,7 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
         
         # Jika ada negasi dan ada kata target, prioritaskan analisis manual
         if has_negation and target_words_in_text:
-            st.info(f"Ditemukan negasi pada kata: {', '.join(target_words_in_text)}")
+            st.info(f"🔍 Ditemukan negasi pada kata: {', '.join(target_words_in_text)}")
             
             # Untuk pola seperti "tidak mahal", "kurang begitu mahal" → POSITIF
             if any(word in ['mahal', 'buruk', 'jelek'] for word in target_words_in_text):
@@ -1468,100 +1468,16 @@ def classify_new_sentences(all_results, tfidf_vectorizer):
         else:
             # Jika analisis manual lemah, gunakan model
             return 'POSITIF' if model_prediction == 1 else 'NEGATIF'
-
-    
-    for i, sentence in enumerate(test_sentences, 1):
-        sentiment, processed_text, wc_original, wc_processed, manual_score, manual_sentiment = predict_sentiment_with_context(
-            sentence, 
-            best_model_info['model'], 
-            tfidf_vectorizer
-        )
-        
-        # Tentukan kategori kalimat
-        if any(word in sentence.lower() for word in ['tidak', 'kurang', 'bukan', 'belum']):
-            category = 'Negasi'
-        elif any(word in sentence.lower() for word in ['lumayan', 'cukup', 'agak', 'sedikit']):
-            category = 'Moderasi'
-        else:
-            category = 'Biasa'
-        
-        results_list.append({
-            'No': i,
-            'Kalimat': sentence,
-            'Kategori': category,
-            'Jml Kata': wc_original,
-            'Hasil': sentiment,
-            'Skor Manual': f"{manual_score:.2f}",
-            'Analisis Manual': manual_sentiment,
-            'Warna': '✅' if sentiment == 'POSITIF' else '❌'
-        })
-    
-    # Tampilkan hasil dalam tabel
-    results_df = pd.DataFrame(results_list)
-    st.table(results_df[['No', 'Kalimat', 'Kategori', 'Jml Kata', 'Hasil', 'Skor Manual', 'Analisis Manual', 'Warna']])
-    
-    # Analisis khusus untuk kalimat negasi
-    st.subheader("ANALISIS DETAIL KALIMAT NEGASI")
-    
-    negation_sentences = [s for s in test_sentences if any(word in s.lower() for word in ['tidak', 'kurang', 'bukan', 'belum'])]
-    
-    for sentence in negation_sentences:
-        sentiment, processed_text, wc_original, wc_processed, manual_score, manual_sentiment = predict_sentiment_with_context(
-            sentence, 
-            best_model_info['model'], 
-            tfidf_vectorizer
-        )
-        
-        st.write(f"**Kalimat:** '{sentence}'")
-        st.write(f"**Hasil Akhir:** {sentiment}")
-        st.write(f"**Skor Manual:** {manual_score:.2f}")
-        st.write(f"**Analisis Manual:** {manual_sentiment}")
-        
-        # Analisis kata per kata
-        words = sentence.lower().split()
-        analysis = []
-        
-        negation_words = ['tidak', 'bukan', 'belum', 'kurang']
-        positive_words = ['bagus', 'baik', 'mantap', 'murah', 'terjangkau', 'puas']
-        negative_words = ['buruk', 'jelek', 'mahal', 'lambat', 'sulit', 'kecewa', 'memuaskan']
-        
-        for i, word in enumerate(words):
-            if word in negation_words:
-                analysis.append(f"**'{word}'** → kata negasi/pembalik")
-            elif word in positive_words:
-                # Cek apakah ada negasi sebelumnya
-                neg_before = any(words[j] in negation_words for j in range(max(0, i-2), i))
-                if neg_before:
-                    analysis.append(f"**'{word}'** (dengan negasi) → **NEGATIF** (kata positif dibalik)")
-                else:
-                    analysis.append(f"**'{word}'** → **POSITIF**")
-            elif word in negative_words:
-                # Cek apakah ada negasi sebelumnya
-                neg_before = any(words[j] in negation_words for j in range(max(0, i-2), i))
-                if neg_before:
-                    analysis.append(f"**'{word}'** (dengan negasi) → **POSITIF** (kata negatif dibalik)")
-                else:
-                    analysis.append(f"**'{word}'** → **NEGATIF**")
-        
-        if analysis:
-            st.write("**Analisis Kata Per Kata:**")
-            for a in analysis:
-                st.write(f"- {a}")
-        
-        st.write("---")
     
     # Input interaktif
     st.subheader("INPUT INTERAKTIF DARI PENGGUNA")
     
     st.info("MASUKKAN KALIMAT UNTUK DIKLASIFIKASIKAN")
     
-    # Contoh kalimat negasi untuk placeholder
-    example_negation = ""
-    
     # Input text dengan contoh kalimat negasi
     user_input = st.text_area(
         "Masukkan kalimat untuk dianalisis:",
-        example_negation,
+        "",
         height=100
     )
     
