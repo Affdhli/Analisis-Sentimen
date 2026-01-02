@@ -1050,110 +1050,235 @@ def train_evaluate_svm(results):
     }
 
 def visualize_results(all_results, accuracy_comparison, svm_params):
-    """Visualisasi hasil dengan parameter"""
+    """Visualisasi hasil dengan parameter - TAMPILKAN SEMUA KERNEL DAN RASIO"""
     st.header("9. VISUALISASI HASIL")
     
-    # Plot confusion matrix
-    st.subheader("Confusion Matrix")
-    
-    # Ambil hasil untuk setiap rasio
-    for ratio_name, ratio_results in all_results.items():
-        if 'custom' in ratio_results:
-            result = ratio_results['custom']
-            
-            cm = result['confusion_matrix']
-            
-            fig, ax = plt.subplots(figsize=(6, 5))
-            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                        xticklabels=['Negatif', 'Positif'],
-                        yticklabels=['Negatif', 'Positif'],
-                        ax=ax)
-            
-            ax.set_title(f'Rasio {ratio_name}\nAkurasi: {result["accuracy"]:.4f}')
-            ax.set_xlabel('Predicted')
-            ax.set_ylabel('Actual')
-            
-            plt.tight_layout()
-            st.pyplot(fig)
-    
-    # Perbandingan akurasi
-    st.subheader("Perbandingan Akurasi Berdasarkan Rasio")
+    # Tampilkan semua kernel dan rasio yang telah diuji
+    st.subheader("HASIL SEMUA KOMBINASI KERNEL DAN RASIO")
     
     if accuracy_comparison:
-        accuracy_df = pd.DataFrame(accuracy_comparison)
+        # Konversi ke DataFrame
+        vis_df = pd.DataFrame(accuracy_comparison)
         
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+        # Buat pivot table untuk visualisasi yang lebih baik
+        pivot_table = vis_df.pivot_table(
+            index=['Kernel', 'C', 'Gamma'],
+            columns='Rasio',
+            values='Akurasi_Keseluruhan',
+            aggfunc='first'
+        ).reset_index()
         
-        # Plot 1: Akurasi berdasarkan rasio
-        if not accuracy_df.empty and 'Rasio' in accuracy_df.columns:
-            # Plot grouped bar chart
-            rasios = accuracy_df['Rasio'].unique()
-            x = np.arange(len(rasios))
-            width = 0.25
-            
-            # Data untuk plot
-            overall_acc = accuracy_df['Akurasi_Keseluruhan'].values
-            neg_acc = accuracy_df['Akurasi_Negatif'].values
-            pos_acc = accuracy_df['Akurasi_Positif'].values
-            
-            ax1.bar(x - width, overall_acc, width, label='Akurasi Keseluruhan', color='#3498db', alpha=0.7)
-            ax1.bar(x, neg_acc, width, label='Akurasi Negatif', color='#e74c3c', alpha=0.7)
-            ax1.bar(x + width, pos_acc, width, label='Akurasi Positif', color='#2ecc71', alpha=0.7)
-            
-            ax1.set_xlabel('Rasio Pembagian Data')
-            ax1.set_ylabel('Akurasi')
-            ax1.set_title(f'Akurasi Berbagai Rasio\n(Kernel: {svm_params["kernel"]}, C={svm_params["C"]})', fontsize=14)
-            ax1.set_xticks(x)
-            ax1.set_xticklabels(rasios)
-            ax1.set_ylim(0, 1.0)
-            ax1.legend()
-            ax1.grid(True, alpha=0.3, axis='y')
-            
-            # Tambahkan nilai di atas bar
-            for i, (overall, neg, pos) in enumerate(zip(overall_acc, neg_acc, pos_acc)):
-                ax1.text(i - width, overall + 0.01, f'{overall:.3f}', ha='center', fontsize=9)
-                ax1.text(i, neg + 0.01, f'{neg:.3f}', ha='center', fontsize=9)
-                ax1.text(i + width, pos + 0.01, f'{pos:.3f}', ha='center', fontsize=9)
+        # Tampilkan pivot table
+        st.write("**Tabel Ringkasan Akurasi:**")
+        st.dataframe(pivot_table, use_container_width=True)
         
-        # Plot 2: Perbandingan metric evaluasi
-        if not accuracy_df.empty:
-            # Ambil data untuk rasio terbaik
-            best_idx = accuracy_df['Akurasi_Keseluruhan'].idxmax()
-            best_row = accuracy_df.loc[best_idx]
-            
-            metrics = ['Precision', 'Recall', 'F1-Score']
-            neg_metrics = [best_row['Precision_Negatif'], best_row['Recall_Negatif'], best_row['F1_Negatif']]
-            pos_metrics = [best_row['Precision_Positif'], best_row['Recall_Positif'], best_row['F1_Positif']]
-            
-            x = np.arange(len(metrics))
-            width = 0.35
-            
-            ax2.bar(x - width/2, neg_metrics, width, label='Negatif', color='#e74c3c', alpha=0.7)
-            ax2.bar(x + width/2, pos_metrics, width, label='Positif', color='#2ecc71', alpha=0.7)
-            
-            ax2.set_xlabel('Metric')
-            ax2.set_ylabel('Nilai')
-            ax2.set_title(f'Metric Evaluasi - Rasio {best_row["Rasio"]}\nAkurasi: {best_row["Akurasi_Keseluruhan"]:.4f}', fontsize=14)
-            ax2.set_xticks(x)
-            ax2.set_xticklabels(metrics)
-            ax2.set_ylim(0, 1.0)
-            ax2.legend()
-            ax2.grid(True, alpha=0.3, axis='y')
-            
-            # Tambahkan nilai
-            for i, (neg, pos) in enumerate(zip(neg_metrics, pos_metrics)):
-                ax2.text(i - width/2, neg + 0.01, f'{neg:.3f}', ha='center', fontsize=9)
-                ax2.text(i + width/2, pos + 0.01, f'{pos:.3f}', ha='center', fontsize=9)
+        # Visualisasi 1: Heatmap semua kombinasi
+        st.subheader("Heatmap Semua Kombinasi Kernel dan Rasio")
+        
+        # Siapkan data untuk heatmap
+        heatmap_data = vis_df.pivot_table(
+            index=['Kernel', 'C', 'Gamma'],
+            columns='Rasio',
+            values='Akurasi_Keseluruhan',
+            aggfunc='first'
+        )
+        
+        fig_heat, ax_heat = plt.subplots(figsize=(12, 8))
+        sns.heatmap(heatmap_data, annot=True, fmt='.4f', cmap='YlOrRd', 
+                   linewidths=1, linecolor='white', ax=ax_heat)
+        ax_heat.set_title('Heatmap Akurasi Semua Kombinasi\n(Semakin Gelap = Akurasi Lebih Tinggi)', fontsize=14)
+        ax_heat.set_xlabel('Rasio Pembagian Data')
+        ax_heat.set_ylabel('Kernel dan Parameter')
+        plt.xticks(rotation=45)
+        plt.yticks(rotation=0)
+        st.pyplot(fig_heat)
+        
+        # Visualisasi 2: Bar chart perbandingan semua kombinasi
+        st.subheader("Perbandingan Akurasi Semua Kombinasi")
+        
+        fig_bar, ax_bar = plt.subplots(figsize=(14, 8))
+        
+        # Buat label untuk setiap kombinasi
+        vis_df['Kombinasi'] = vis_df.apply(
+            lambda row: f"{row['Kernel']}\nC={row['C']}\nG={row['Gamma']}", 
+            axis=1
+        )
+        
+        # Plot bar chart
+        x = np.arange(len(vis_df))
+        width = 0.25
+        
+        # Data untuk setiap rasio
+        rasios = vis_df['Rasio'].unique()
+        colors = ['#3498db', '#2ecc71', '#e74c3c']
+        
+        for i, rasio in enumerate(rasios):
+            rasio_data = vis_df[vis_df['Rasio'] == rasio]
+            # Urutkan berdasarkan kombinasi
+            rasio_data = rasio_data.sort_values('Kombinasi')
+            ax_bar.bar(x + (i-1)*width, rasio_data['Akurasi_Keseluruhan'].values, 
+                      width, label=rasio, color=colors[i], alpha=0.7)
+        
+        ax_bar.set_xlabel('Kombinasi Kernel dan Parameter')
+        ax_bar.set_ylabel('Akurasi')
+        ax_bar.set_title('Perbandingan Akurasi Semua Kombinasi Kernel dan Rasio', fontsize=14)
+        ax_bar.set_xticks(x)
+        ax_bar.set_xticklabels(vis_df.sort_values('Kombinasi')['Kombinasi'].unique(), rotation=45, ha='right')
+        ax_bar.set_ylim(0, 1.0)
+        ax_bar.legend(title='Rasio')
+        ax_bar.grid(True, alpha=0.3, axis='y')
+        
+        # Tambahkan nilai di atas bar
+        for i, rasio in enumerate(rasios):
+            rasio_data = vis_df[vis_df['Rasio'] == rasio].sort_values('Kombinasi')
+            for j, value in enumerate(rasio_data['Akurasi_Keseluruhan'].values):
+                ax_bar.text(j + (i-1)*width, value + 0.01, f'{value:.3f}', 
+                          ha='center', va='bottom', fontsize=8)
         
         plt.tight_layout()
-        st.pyplot(fig)
+        st.pyplot(fig_bar)
         
-        # Tampilkan tabel perbandingan
-        st.subheader("Tabel Perbandingan Akurasi Model")
+        # Visualisasi 3: Line chart tren akurasi per kernel
+        st.subheader("Tren Akurasi per Kernel")
         
-        with st.expander("Klik untuk melihat tabel detail"):
+        fig_line, ax_line = plt.subplots(figsize=(12, 6))
+        
+        kernels = vis_df['Kernel'].unique()
+        markers = ['o', 's', '^', 'D', 'v']
+        
+        for i, kernel in enumerate(kernels):
+            kernel_data = vis_df[vis_df['Kernel'] == kernel]
+            # Urutkan berdasarkan rasio
+            rasio_order = {'80:20': 0, '90:10': 1, '70:30': 2}
+            kernel_data['Rasio_Order'] = kernel_data['Rasio'].map(rasio_order)
+            kernel_data = kernel_data.sort_values('Rasio_Order')
+            
+            ax_line.plot(kernel_data['Rasio'], kernel_data['Akurasi_Keseluruhan'], 
+                        marker=markers[i % len(markers)], linewidth=2, markersize=8,
+                        label=kernel, alpha=0.8)
+            
+            # Tambahkan nilai di setiap titik
+            for j, row in kernel_data.iterrows():
+                ax_line.text(row['Rasio'], row['Akurasi_Keseluruhan'] + 0.01, 
+                           f"{row['Akurasi_Keseluruhan']:.3f}", 
+                           ha='center', va='bottom', fontsize=9)
+        
+        ax_line.set_xlabel('Rasio Pembagian Data')
+        ax_line.set_ylabel('Akurasi')
+        ax_line.set_title('Tren Akurasi per Kernel pada Berbagai Rasio', fontsize=14)
+        ax_line.set_ylim(0, 1.0)
+        ax_line.legend(title='Kernel')
+        ax_line.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        st.pyplot(fig_line)
+        
+        # Visualisasi 4: Radar chart untuk performa multi-aspek
+        st.subheader("Performa Multi-Aspek Kernel Terbaik")
+        
+        # Cari kernel terbaik untuk setiap rasio
+        best_results = []
+        for rasio in rasios:
+            rasio_data = vis_df[vis_df['Rasio'] == rasio]
+            best_idx = rasio_data['Akurasi_Keseluruhan'].idxmax()
+            best_results.append(vis_df.loc[best_idx])
+        
+        if best_results:
+            best_df = pd.DataFrame(best_results)
+            
+            # Buat radar chart
+            fig_radar, ax_radar = plt.subplots(figsize=(10, 8), subplot_kw=dict(projection='polar'))
+            
+            # Metrics yang akan ditampilkan
+            metrics = ['Akurasi_Keseluruhan', 'Akurasi_Negatif', 'Akurasi_Positif', 
+                      'Precision_Positif', 'Recall_Positif', 'F1_Positif',
+                      'Precision_Negatif', 'Recall_Negatif', 'F1_Negatif']
+            
+            # Normalisasi data
+            radar_data = []
+            for metric in metrics:
+                max_val = best_df[metric].max()
+                normalized = best_df[metric] / max_val if max_val > 0 else best_df[metric]
+                radar_data.append(normalized.values)
+            
+            # Sudut untuk setiap metric
+            angles = np.linspace(0, 2 * np.pi, len(metrics), endpoint=False).tolist()
+            angles += angles[:1]  # Tutup radar chart
+            
+            # Plot untuk setiap rasio
+            colors_radar = ['#3498db', '#2ecc71', '#e74c3c']
+            
+            for i, rasio in enumerate(rasios):
+                rasio_data = [radar_data[j][i] for j in range(len(metrics))]
+                rasio_data += rasio_data[:1]  # Tutup radar chart
+                
+                ax_radar.plot(angles, rasio_data, color=colors_radar[i], linewidth=2, label=rasio)
+                ax_radar.fill(angles, rasio_data, color=colors_radar[i], alpha=0.1)
+            
+            # Atur label
+            ax_radar.set_xticks(angles[:-1])
+            ax_radar.set_xticklabels([m.replace('_', ' ') for m in metrics], fontsize=10)
+            ax_radar.set_ylim(0, 1.1)
+            ax_radar.set_title('Performa Multi-Aspek Kernel Terbaik per Rasio', fontsize=14, pad=20)
+            ax_radar.legend(loc='upper right', bbox_to_anchor=(1.3, 1.0))
+            ax_radar.grid(True)
+            
+            plt.tight_layout()
+            st.pyplot(fig_radar)
+        
+        # Visualisasi 5: Matrix plot untuk semua kombinasi
+        st.subheader("Matrix Plot Semua Kombinasi")
+        
+        # Buat matrix dengan kernel sebagai baris dan rasio sebagai kolom
+        fig_matrix, axes = plt.subplots(2, 3, figsize=(15, 10))
+        axes = axes.flatten()
+        
+        kernels = sorted(vis_df['Kernel'].unique())
+        
+        for idx, kernel in enumerate(kerners):
+            if idx < len(axes):
+                ax = axes[idx]
+                kernel_data = vis_df[vis_df['Kernel'] == kernel]
+                
+                # Scatter plot dengan C sebagai ukuran titik dan gamma sebagai warna
+                scatter = ax.scatter(
+                    kernel_data['C'],
+                    kernel_data['Akurasi_Keseluruhan'],
+                    c=kernel_data['Gamma'].apply(lambda x: float(x) if isinstance(x, (int, float)) else 0.1),
+                    s=200,
+                    cmap='viridis',
+                    alpha=0.7,
+                    edgecolors='black'
+                )
+                
+                ax.set_xlabel('Parameter C')
+                ax.set_ylabel('Akurasi')
+                ax.set_title(f'Kernel: {kernel}')
+                ax.set_ylim(0, 1.0)
+                ax.grid(True, alpha=0.3)
+                
+                # Tambahkan label untuk setiap titik
+                for _, row in kernel_data.iterrows():
+                    ax.text(row['C'], row['Akurasi_Keseluruhan'] + 0.02, 
+                           row['Rasio'], ha='center', va='bottom', fontsize=8)
+        
+        # Sembunyikan axes yang tidak terpakai
+        for idx in range(len(kernels), len(axes)):
+            axes[idx].set_visible(False)
+        
+        # Tambahkan colorbar
+        plt.colorbar(scatter, ax=axes[:len(kernels)].tolist(), label='Gamma')
+        
+        plt.suptitle('Matrix Plot: Pengaruh C dan Gamma pada Akurasi', fontsize=16)
+        plt.tight_layout()
+        st.pyplot(fig_matrix)
+        
+        # Tampilkan tabel detail semua kombinasi
+        st.subheader("Tabel Detail Semua Kombinasi")
+        
+        with st.expander("Klik untuk melihat tabel detail lengkap"):
             # Format kolom untuk tampilan yang lebih baik
-            display_df = accuracy_df.copy()
+            display_df = vis_df.copy()
             
             # Format angka menjadi persentase
             numeric_cols = ['Akurasi_Keseluruhan', 'Akurasi_Negatif', 'Akurasi_Positif', 
@@ -1165,7 +1290,7 @@ def visualize_results(all_results, accuracy_comparison, svm_params):
                     display_df[col] = display_df[col].apply(lambda x: f"{x*100:.2f}%" if isinstance(x, (int, float)) else x)
             
             # Reorder kolom untuk tampilan yang lebih baik
-            column_order = ['Rasio', 'Kernel', 'C', 'Gamma', 'Degree', 'Akurasi_Keseluruhan', 
+            column_order = ['Kernel', 'C', 'Gamma', 'Degree', 'Rasio', 'Akurasi_Keseluruhan', 
                            'Akurasi_Negatif', 'Akurasi_Positif', 'Precision_Positif', 
                            'Recall_Positif', 'F1_Positif', 'Precision_Negatif', 'Recall_Negatif', 
                            'F1_Negatif', 'Support_Positif', 'Support_Negatif']
@@ -1178,42 +1303,116 @@ def visualize_results(all_results, accuracy_comparison, svm_params):
             display_df = display_df.sort_values(by='Akurasi_Keseluruhan', ascending=False)
             display_df.insert(0, 'Ranking', range(1, len(display_df) + 1))
             
-            st.dataframe(display_df, use_container_width=True)
+            st.dataframe(display_df, use_container_width=True, height=400)
             
-            # Analisis model terbaik
-            st.subheader("Analisis Model Terbaik")
+            # Analisis statistik
+            st.subheader("Analisis Statistik")
             
-            best_overall_idx = display_df['Akurasi_Keseluruhan'].str.replace('%', '').astype(float).idxmax()
-            best_model = display_df.loc[best_overall_idx]
+            col_stat1, col_stat2, col_stat3 = st.columns(3)
             
-            col_best1, col_best2, col_best3 = st.columns(3)
-            with col_best1:
-                st.metric("Model Terbaik", f"{best_model['Rasio']}")
-            with col_best2:
-                st.metric("Akurasi Terbaik", best_model['Akurasi_Keseluruhan'])
-            with col_best3:
-                # Hitung selisih akurasi positif-negatif
-                pos_acc = float(best_model['Akurasi_Positif'].replace('%', ''))
-                neg_acc = float(best_model['Akurasi_Negatif'].replace('%', ''))
-                diff = pos_acc - neg_acc
-                st.metric("Selisih Akurasi (P-N)", f"{diff:.2f}%")
+            with col_stat1:
+                st.metric("Kernel Terbaik", display_df.iloc[0]['Kernel'])
+                st.metric("Rasio Terbaik", display_df.iloc[0]['Rasio'])
             
-            # Rekomendasi
+            with col_stat2:
+                avg_acc = display_df['Akurasi_Keseluruhan'].str.replace('%', '').astype(float).mean()
+                st.metric("Rata-rata Akurasi", f"{avg_acc:.2f}%")
+                
+                max_acc = display_df['Akurasi_Keseluruhan'].str.replace('%', '').astype(float).max()
+                st.metric("Akurasi Tertinggi", f"{max_acc:.2f}%")
+            
+            with col_stat3:
+                min_acc = display_df['Akurasi_Keseluruhan'].str.replace('%', '').astype(float).min()
+                st.metric("Akurasi Terendah", f"{min_acc:.2f}%")
+                
+                std_acc = display_df['Akurasi_Keseluruhan'].str.replace('%', '').astype(float).std()
+                st.metric("Standar Deviasi", f"{std_acc:.2f}%")
+            
+            # Analisis per kernel
+            st.subheader("Analisis Performa per Kernel")
+            
+            kernel_stats = []
+            for kernel in kernels:
+                kernel_data = display_df[display_df['Kernel'] == kernel]
+                if not kernel_data.empty:
+                    avg_acc = kernel_data['Akurasi_Keseluruhan'].str.replace('%', '').astype(float).mean()
+                    max_acc = kernel_data['Akurasi_Keseluruhan'].str.replace('%', '').astype(float).max()
+                    min_acc = kernel_data['Akurasi_Keseluruhan'].str.replace('%', '').astype(float).min()
+                    
+                    kernel_stats.append({
+                        'Kernel': kernel,
+                        'Rata-rata Akurasi': f"{avg_acc:.2f}%",
+                        'Akurasi Tertinggi': f"{max_acc:.2f}%",
+                        'Akurasi Terendah': f"{min_acc:.2f}%",
+                        'Jumlah Kombinasi': len(kernel_data)
+                    })
+            
+            kernel_stats_df = pd.DataFrame(kernel_stats)
+            st.dataframe(kernel_stats_df, use_container_width=True)
+            
+            # Rekomendasi berdasarkan analisis
+            st.subheader("Rekomendasi Berdasarkan Analisis")
+            
+            best_overall = display_df.iloc[0]
+            
             st.info(f"""
-            **Rekomendasi:** Gunakan model dengan **rasio {best_model['Rasio']}** 
-            karena memiliki akurasi tertinggi ({best_model['Akurasi_Keseluruhan']}) dengan parameter:
-            - Kernel: {svm_params['kernel']}
-            - C: {svm_params['C']}
-            - Gamma: {svm_params['gamma']}
-            {f"- Degree: {svm_params['degree']}" if svm_params.get('degree') else ""}
+            **Rekomendasi Model Terbaik:**
             
-            Model ini memberikan keseimbangan yang baik antara akurasi kelas positif 
-            ({best_model['Akurasi_Positif']}) dan negatif ({best_model['Akurasi_Negatif']}).
+            1. **Kernel**: {best_overall['Kernel']}
+            2. **Rasio**: {best_overall['Rasio']}
+            3. **Parameter C**: {best_overall['C']}
+            4. **Parameter Gamma**: {best_overall['Gamma']}
+            5. **Akurasi**: {best_overall['Akurasi_Keseluruhan']}
+            6. **Akurasi Positif**: {best_overall['Akurasi_Positif']}
+            7. **Akurasi Negatif**: {best_overall['Akurasi_Negatif']}
+            
+            **Alasan rekomendasi:**
+            - Memiliki akurasi keseluruhan tertinggi
+            - Keseimbangan yang baik antara akurasi positif dan negatif
+            - Parameter yang optimal untuk dataset ini
             """)
-    else:
-        st.warning("Tidak ada data akurasi untuk divisualisasikan.")
+            
+            # Analisis tambahan
+            st.subheader("Analisis Lanjutan")
+            
+            col_adv1, col_adv2 = st.columns(2)
+            
+            with col_adv1:
+                st.write("**Tren Performa:**")
+                for kernel in kernels:
+                    kernel_data = display_df[display_df['Kernel'] == kernel]
+                    if not kernel_data.empty:
+                        best_rasio = kernel_data.iloc[0]['Rasio']
+                        best_acc = kernel_data.iloc[0]['Akurasi_Keseluruhan']
+                        st.write(f"- **{kernel}**: Terbaik di rasio {best_rasio} ({best_acc})")
+            
+            with col_adv2:
+                st.write("**Insight Parameter:**")
+                
+                # Analisis parameter C
+                c_groups = display_df.groupby('C')['Akurasi_Keseluruhan'].apply(
+                    lambda x: x.str.replace('%', '').astype(float).mean()
+                ).sort_values(ascending=False)
+                
+                st.write("**Pengaruh Parameter C:**")
+                best_c = c_groups.index[0]
+                st.write(f"- Nilai C terbaik: {best_c}")
+                st.write(f"- Rata-rata akurasi dengan C={best_c}: {c_groups.iloc[0]:.2f}%")
+                
+                # Analisis kernel
+                kernel_groups = display_df.groupby('Kernel')['Akurasi_Keseluruhan'].apply(
+                    lambda x: x.str.replace('%', '').astype(float).mean()
+                ).sort_values(ascending=False)
+                
+                st.write("**Performa Kernel:**")
+                best_kernel = kernel_groups.index[0]
+                st.write(f"- Kernel terbaik secara rata-rata: {best_kernel}")
+                st.write(f"- Rata-rata akurasi: {kernel_groups.iloc[0]:.2f}%")
     
-    return accuracy_df if accuracy_comparison else None
+    else:
+        st.warning("Tidak ada data akurasi untuk divisualisasikan. Silakan latih model terlebih dahulu di section 8.")
+    
+    return vis_df if accuracy_comparison else None
 
 def classify_new_sentences(all_results, tfidf_vectorizer, svm_params):
     """Klasifikasi kalimat baru dengan penanganan kalimat rancu"""
