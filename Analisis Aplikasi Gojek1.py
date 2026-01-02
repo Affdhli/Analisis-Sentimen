@@ -26,21 +26,21 @@ nltk.download('stopwords')
 nltk.download('punkt_tab')
 
 # ============================================
-# FUNGSI-FUNGSI UTAMA DENGAN PARAMETER
+# FUNGSI-FUNGSI UTAMA
 # ============================================
 
-def setup_page(page_title="Analisis Sentimen Ulasan Gojek", layout="wide"):
-    """Setup halaman Streamlit dengan parameter"""
+def setup_page():
+    """Setup halaman Streamlit"""
     st.set_page_config(
-        page_title=page_title,
-        layout=layout
+        page_title="Analisis Sentimen Ulasan Gojek",
+        layout="wide"
     )
     
-    st.title(page_title)
+    st.title("Analisis Sentimen Ulasan Gojek")
     st.markdown("---")
 
-def upload_data(max_data=8000, show_preview=True, show_examples=True):
-    """Fungsi untuk upload data dengan parameter"""
+def upload_data():
+    """Fungsi untuk upload data"""
     st.header("1. UPLOAD DATA")
     
     # Hanya menyediakan opsi upload file
@@ -64,7 +64,8 @@ def upload_data(max_data=8000, show_preview=True, show_examples=True):
                 st.error("File harus memiliki kolom 'content'")
                 return None
             
-            # Ambil data pertama jika lebih dari max_data
+            # Ambil 8000 data pertama jika lebih
+            max_data = 8000
             original_count = len(df)
             
             if len(df) > max_data:
@@ -73,19 +74,18 @@ def upload_data(max_data=8000, show_preview=True, show_examples=True):
             else:
                 st.info(f"Menggunakan semua data yang tersedia: {len(df)} data")
             
-            # Tampilkan preview jika parameter show_preview True
-            if show_preview:
-                with st.expander("Preview Data"):
-                    st.dataframe(df.head())
-                    
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.write("**Informasi kolom:**")
-                        st.write(df.columns.tolist())
-                    with col2:
-                        st.write("**Statistik data:**")
-                        st.write(f"- Jumlah baris: {len(df)}")
-                        st.write(f"- Jumlah kolom: {len(df.columns)}")
+            # Tampilkan preview
+            with st.expander("Preview Data"):
+                st.dataframe(df.head())
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write("**Informasi kolom:**")
+                    st.write(df.columns.tolist())
+                with col2:
+                    st.write("**Statistik data:**")
+                    st.write(f"- Jumlah baris: {len(df)}")
+                    st.write(f"- Jumlah kolom: {len(df.columns)}")
             
         except Exception as e:
             st.error(f"Error membaca file: {str(e)}")
@@ -134,23 +134,22 @@ def upload_data(max_data=8000, show_preview=True, show_examples=True):
             ax2.set_title('Persentase Sentimen')
             st.pyplot(fig2)
         
-        # Tampilkan contoh data jika parameter show_examples True
-        if show_examples:
-            with st.expander("Contoh Data (5 baris pertama)"):
-                for i in range(min(5, len(df))):
-                    content = str(df['content'].iloc[i])
-                    sentiment = df['sentimen'].iloc[i] if 'sentimen' in df.columns else 'N/A'
-                    
-                    st.write(f"**Data {i+1}:**")
-                    st.write(f"- Konten: {content[:70]}...")
-                    st.write(f"- Sentimen: {sentiment}")
-                    st.write(f"- Jumlah kata: {df['jumlah_kata'].iloc[i]}")
-                    st.write("---")
+        # Tampilkan contoh data
+        with st.expander("Contoh Data (5 baris pertama)"):
+            for i in range(min(5, len(df))):
+                content = str(df['content'].iloc[i])
+                sentiment = df['sentimen'].iloc[i] if 'sentimen' in df.columns else 'N/A'
+                
+                st.write(f"**Data {i+1}:**")
+                st.write(f"- Konten: {content[:70]}...")
+                st.write(f"- Sentimen: {sentiment}")
+                st.write(f"- Jumlah kata: {df['jumlah_kata'].iloc[i]}")
+                st.write("---")
     
     return df
 
-def analyze_word_count(df, show_stats=True, show_chart=True, bins=50, chart_color='skyblue'):
-    """Analisis jumlah kata dengan parameter"""
+def analyze_word_count(df):
+    """Analisis jumlah kata - HANYA GRAFIK"""
     st.header("2. ANALISIS JUMLAH KATA DARI ULASAN")
     
     # Fungsi untuk menghitung jumlah kata
@@ -162,96 +161,80 @@ def analyze_word_count(df, show_stats=True, show_chart=True, bins=50, chart_colo
     # Hitung jumlah kata untuk semua ulasan
     df['word_count'] = df['content'].apply(count_words)
     
-    # Tampilkan statistik jika parameter show_stats True
-    if show_stats:
-        st.subheader("STATISTIK JUMLAH KATA:")
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Total Kata Semua Ulasan", f"{df['word_count'].sum():,} kata")
-        with col2:
-            st.metric("Rata-rata Kata per Ulasan", f"{df['word_count'].mean():.1f} kata")
-        with col3:
-            st.metric("Median Kata per Ulasan", f"{df['word_count'].median():.1f} kata")
+    # Tampilkan statistik singkat
+    st.subheader("STATISTIK JUMLAH KATA:")
     
-    # Tampilkan chart jika parameter show_chart True
-    if show_chart:
-        st.subheader("Visualisasi Distribusi")
-        
-        fig, ax = plt.subplots(figsize=(10, 5))
-        
-        # Histogram dengan parameter
-        ax.hist(df['word_count'], bins=bins, edgecolor='black', alpha=0.7, color=chart_color)
-        ax.axvline(df['word_count'].mean(), color='red', linestyle='dashed', 
-                    linewidth=2, label=f'Rata-rata: {df["word_count"].mean():.1f}')
-        ax.set_xlabel('Jumlah Kata')
-        ax.set_ylabel('Frekuensi')
-        ax.set_title('Distribusi Jumlah Kata per Ulasan')
-        ax.legend()
-        ax.grid(True, alpha=0.3)
-        
-        plt.tight_layout()
-        st.pyplot(fig)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total Kata Semua Ulasan", f"{df['word_count'].sum():,} kata")
+    with col2:
+        st.metric("Rata-rata Kata per Ulasan", f"{df['word_count'].mean():.1f} kata")
+    with col3:
+        st.metric("Median Kata per Ulasan", f"{df['word_count'].median():.1f} kata")
+    
+    # HANYA MENAMPILKAN GRAFIK - HAPUS BOX PLOT
+    st.subheader("Visualisasi Distribusi")
+    
+    fig, ax = plt.subplots(figsize=(10, 5))
+    
+    # Histogram saja
+    ax.hist(df['word_count'], bins=50, edgecolor='black', alpha=0.7, color='skyblue')
+    ax.axvline(df['word_count'].mean(), color='red', linestyle='dashed', 
+                linewidth=2, label=f'Rata-rata: {df["word_count"].mean():.1f}')
+    ax.set_xlabel('Jumlah Kata')
+    ax.set_ylabel('Frekuensi')
+    ax.set_title('Distribusi Jumlah Kata per Ulasan')
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    st.pyplot(fig)
     
     return df
 
-def lexicon_sentiment_labeling(df, 
-                               positive_words=None, 
-                               negative_words=None, 
-                               negation_words=None, 
-                               intensifier_words=None,
-                               ambiguous_patterns=None,
-                               show_charts=True):
-    """Pelabelan sentimen dengan lexicon dengan parameter"""
+def lexicon_sentiment_labeling(df):
+    """Pelabelan sentimen dengan lexicon - HANYA GRAFIK"""
     st.header("3. PELABELAN SENTIMEN MENGGUNAKAN LEXICON")
     
-    # Lexicon default jika tidak disediakan
-    if positive_words is None:
-        positive_words = [
-            'bagus', 'baik', 'mantap', 'cepat', 'mudah', 'praktis', 'terbaik',
-            'puas', 'sukses', 'senang', 'murah', 'keren', 'hebat', 'suka',
-            'tolong', 'bantu', 'recommended', 'lancar', 'memuaskan', 'nyaman',
-            'aman', 'profit', 'untung', 'cinta', 'setia', 'gembira', 'bahagia',
-            'nikmat', 'enak', 'lezat', 'hemat', 'efisien', 'efektif', 'semangat',
-            'antusias', 'luar biasa', 'wow', 'excellent', 'awesome', 'fantastic',
-            'great', 'good', 'nice', 'perfect', 'sempurna', 'istimewa', 'unggul',
-            'optimal', 'maksimal', 'sangat baik', 'sangat bagus', 'memukau',
-            'mengesankan', 'cepat sekali', 'murah sekali', 'sangat membantu',
-            'sangat memuaskan', 'profesional', 'ramah', 'sopan', 'jujur',
-            'tepat waktu', 'akurat', 'responsif', 'inovasi', 'kreatif',
-            'handal', 'andal', 'terpercaya', 'amanah', 'solutif', 'efektif',
-            'terjangkau', 'lumayan', 'cukup'
-        ]
+    # Lexicon yang diperluas untuk Bahasa Indonesia dengan penanganan kalimat rancu
+    positive_words = [
+        'bagus', 'baik', 'mantap', 'cepat', 'mudah', 'praktis', 'terbaik',
+        'puas', 'sukses', 'senang', 'murah', 'keren', 'hebat', 'suka',
+        'tolong', 'bantu', 'recommended', 'lancar', 'memuaskan', 'nyaman',
+        'aman', 'profit', 'untung', 'cinta', 'setia', 'gembira', 'bahagia',
+        'nikmat', 'enak', 'lezat', 'hemat', 'efisien', 'efektif', 'semangat',
+        'antusias', 'luar biasa', 'wow', 'excellent', 'awesome', 'fantastic',
+        'great', 'good', 'nice', 'perfect', 'sempurna', 'istimewa', 'unggul',
+        'optimal', 'maksimal', 'sangat baik', 'sangat bagus', 'memukau',
+        'mengesankan', 'cepat sekali', 'murah sekali', 'sangat membantu',
+        'sangat memuaskan', 'profesional', 'ramah', 'sopan', 'jujur',
+        'tepat waktu', 'akurat', 'responsif', 'inovasi', 'kreatif',
+        'handal', 'andal', 'terpercaya', 'amanah', 'solutif', 'efektif',
+        'terjangkau', 'lumayan', 'cukup'
+    ]
     
-    if negative_words is None:
-        negative_words = [
-            'buruk', 'jelek', 'lambat', 'sulit', 'ribet', 'mahal', 'gagal',
-            'kecewa', 'sedih', 'marah', 'kesal', 'jengkel', 'bosan', 'sebel',
-            'menyesal', 'menyedihkan', 'menyebalkan', 'parah', 'bermasalah',
-            'error', 'bug', 'kacau', 'rusak', 'hilang', 'terlambat', 'telat',
-            'susah', 'payah', 'lemot', 'bangkrut', 'rugi', 'sial', 'celaka',
-            'mengerikan', 'horor', 'takut', 'khawatir', 'cemas', 'stress',
-            'frustasi', 'mengecewakan', 'menipu', 'bodoh', 'tolol', 'goblok',
-            'anjing', 'bangsat', 'kontol', 'asu', 'jancok', 'parah sekali',
-            'sangat buruk', 'sangat jelek', 'sangat lambat', 'sangat mahal',
-            'tidak bisa', 'tidak bisa dipakai', 'tidak berfungsi', 'tidak responsif',
-            'tidak profesional', 'kasar', 'tidak sopan', 'curang', 'penipu',
-            'mencurigakan', 'berbahaya', 'menakutkan', 'menjengkelkan', 'membosankan',
-            'mengecewa', 'menyusahkan', 'merepotkan', 'menghambat', 'menyakitkan',
-            'standar', 'biasa', 'tidak spesial'
-        ]
+    negative_words = [
+        'buruk', 'jelek', 'lambat', 'sulit', 'ribet', 'mahal', 'gagal',
+        'kecewa', 'sedih', 'marah', 'kesal', 'jengkel', 'bosan', 'sebel',
+        'menyesal', 'menyedihkan', 'menyebalkan', 'parah', 'bermasalah',
+        'error', 'bug', 'kacau', 'rusak', 'hilang', 'terlambat', 'telat',
+        'susah', 'payah', 'lemot', 'bangkrut', 'rugi', 'sial', 'celaka',
+        'mengerikan', 'horor', 'takut', 'khawatir', 'cemas', 'stress',
+        'frustasi', 'mengecewakan', 'menipu', 'bodoh', 'tolol', 'goblok',
+        'anjing', 'bangsat', 'kontol', 'asu', 'jancok', 'parah sekali',
+        'sangat buruk', 'sangat jelek', 'sangat lambat', 'sangat mahal',
+        'tidak bisa', 'tidak bisa dipakai', 'tidak berfungsi', 'tidak responsif',
+        'tidak profesional', 'kasar', 'tidak sopan', 'curang', 'penipu',
+        'mencurigakan', 'berbahaya', 'menakutkan', 'menjengkelkan', 'membosankan',
+        'mengecewa', 'menyusahkan', 'merepotkan', 'menghambat', 'menyakitkan',
+        'standar', 'biasa', 'tidak spesial'
+    ]
     
-    if negation_words is None:
-        negation_words = ['tidak', 'bukan', 'belum', 'jangan', 'kurang', 'sedikit', 'agak', 'cukup', 'lumayan']
+    # Kata-kata pembalik/negasi
+    negation_words = ['tidak', 'bukan', 'belum', 'jangan', 'kurang', 'sedikit', 'agak', 'cukup', 'lumayan']
     
-    if intensifier_words is None:
-        intensifier_words = ['sangat', 'sekali', 'banget', 'amat', 'terlalu', 'luar biasa']
-    
-    if ambiguous_patterns is None:
-        ambiguous_patterns = [
-            'kurang begitu', 'tidak terlalu', 'agak', 'sedikit',
-            'cukup', 'lumayan', 'standar', 'biasa saja'
-        ]
+    # Kata-kata intensifier
+    intensifier_words = ['sangat', 'sekali', 'banget', 'amat', 'terlalu', 'luar biasa']
     
     # Fungsi untuk pelabelan sentimen dengan penanganan kalimat rancu
     def lexicon_sentiment_analysis_advanced(text):
@@ -297,6 +280,12 @@ def lexicon_sentiment_labeling(df,
         # Cek kata kunci yang sangat kuat
         strong_positive = any(word in text_lower for word in ['sangat baik', 'sangat bagus', 'luar biasa', 'terbaik'])
         strong_negative = any(word in text_lower for word in ['sangat buruk', 'sangat jelek', 'parah sekali', 'penipu'])
+        
+        # Penanganan khusus untuk kalimat rancu
+        ambiguous_patterns = [
+            'kurang begitu', 'tidak terlalu', 'agak', 'sedikit',
+            'cukup', 'lumayan', 'standar', 'biasa saja'
+        ]
         
         is_ambiguous = any(pattern in text_lower for pattern in ambiguous_patterns)
         
@@ -344,35 +333,34 @@ def lexicon_sentiment_labeling(df,
     # Tampilkan statistik singkat
     st.success(f"Pelabelan selesai: {total_data} ulasan")
     
-    # Tampilkan chart jika parameter show_charts True
-    if show_charts:
-        st.subheader("HASIL PELABELAN SENTIMEN:")
-        
-        # Visualisasi grafik saja
-        fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-        
-        # Pie chart distribusi sentimen
-        sentiment_counts = df['sentiment_label'].value_counts()
-        colors = ['#2ecc71', '#e74c3c']
-        axes[0].pie(sentiment_counts.values, labels=sentiment_counts.index, 
-                    autopct='%1.1f%%', colors=colors, startangle=90)
-        axes[0].set_title('Distribusi Sentimen\n(Hanya Positif & Negatif)')
-        
-        # Bar plot jumlah ulasan per sentimen
-        axes[1].bar(sentiment_counts.index, sentiment_counts.values, color=colors, alpha=0.7)
-        axes[1].set_xlabel('Sentimen')
-        axes[1].set_ylabel('Jumlah Ulasan')
-        axes[1].set_title('Jumlah Ulasan per Kategori')
-        for i, v in enumerate(sentiment_counts.values):
-            axes[1].text(i, v + max(sentiment_counts.values)*0.01, str(v), ha='center')
-        
-        plt.tight_layout()
-        st.pyplot(fig)
+    # HANYA MENAMPILKAN GRAFIK - HAPUS ANALISIS STATISTIK TABEL
+    st.subheader("HASIL PELABELAN SENTIMEN:")
+    
+    # Visualisasi grafik saja
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    
+    # Pie chart distribusi sentimen
+    sentiment_counts = df['sentiment_label'].value_counts()
+    colors = ['#2ecc71', '#e74c3c']
+    axes[0].pie(sentiment_counts.values, labels=sentiment_counts.index, 
+                autopct='%1.1f%%', colors=colors, startangle=90)
+    axes[0].set_title('Distribusi Sentimen\n(Hanya Positif & Negatif)')
+    
+    # Bar plot jumlah ulasan per sentimen
+    axes[1].bar(sentiment_counts.index, sentiment_counts.values, color=colors, alpha=0.7)
+    axes[1].set_xlabel('Sentimen')
+    axes[1].set_ylabel('Jumlah Ulasan')
+    axes[1].set_title('Jumlah Ulasan per Kategori')
+    for i, v in enumerate(sentiment_counts.values):
+        axes[1].text(i, v + max(sentiment_counts.values)*0.01, str(v), ha='center')
+    
+    plt.tight_layout()
+    st.pyplot(fig)
     
     return df, sentiment_distribution
 
-def text_preprocessing(df, show_comparison=True, show_example=True, sample_idx=0):
-    """Preprocessing teks dengan parameter"""
+def text_preprocessing(df):
+    """Preprocessing teks"""
     st.header("4. TEXT PREPROCESSING")
     
     # Inisialisasi tools
@@ -428,48 +416,37 @@ def text_preprocessing(df, show_comparison=True, show_example=True, sample_idx=0
     
     st.success("✓ Preprocessing selesai!")
     
-    # Tampilkan perbandingan jika parameter show_comparison True
-    if show_comparison:
-        st.subheader("PERBANDINGAN JUMLAH KATA:")
-        
-        before_total = df['word_count'].sum()
-        after_total = df['word_count_processed'].sum()
-        reduction = before_total - after_total
-        reduction_pct = (reduction/before_total*100) if before_total > 0 else 0
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.metric("Sebelum preprocessing", f"{before_total:,} kata")
-        
-        with col2:
-            st.metric("Setelah preprocessing", f"{after_total:,} kata")
-        
-        st.info(f"Pengurangan: {reduction:,} kata ({reduction_pct:.1f}%)")
+    # Tampilkan perbandingan
+    st.subheader("PERBANDINGAN JUMLAH KATA:")
     
-    # Contoh hasil preprocessing jika parameter show_example True
-    if show_example:
-        st.subheader("CONTOH HASIL PREPROCESSING:")
-        
-        # Pastikan sample_idx valid
-        if sample_idx >= len(df):
-            sample_idx = 0
-            
-        st.write(f"**Original:** {df['content'].iloc[sample_idx][:100]}...")
-        st.write(f"**Cleaned:** {df['processed_text'].iloc[sample_idx][:100]}...")
-        st.write(f"**Jumlah kata asli:** {df['word_count'].iloc[sample_idx]}")
-        st.write(f"**Jumlah kata setelah preprocessing:** {df['word_count_processed'].iloc[sample_idx]}")
+    before_total = df['word_count'].sum()
+    after_total = df['word_count_processed'].sum()
+    reduction = before_total - after_total
+    reduction_pct = (reduction/before_total*100) if before_total > 0 else 0
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.metric("Sebelum preprocessing", f"{before_total:,} kata")
+    
+    with col2:
+        st.metric("Setelah preprocessing", f"{after_total:,} kata")
+    
+    st.info(f"Pengurangan: {reduction:,} kata ({reduction_pct:.1f}%)")
+    
+    # Contoh hasil preprocessing
+    st.subheader("CONTOH HASIL PREPROCESSING:")
+    
+    sample_idx = 0
+    st.write(f"**Original:** {df['content'].iloc[sample_idx][:100]}...")
+    st.write(f"**Cleaned:** {df['processed_text'].iloc[sample_idx][:100]}...")
+    st.write(f"**Jumlah kata asli:** {df['word_count'].iloc[sample_idx]}")
+    st.write(f"**Jumlah kata setelah preprocessing:** {df['word_count_processed'].iloc[sample_idx]}")
     
     return df
 
-def create_wordcloud_viz(df, 
-                         show_all=True, 
-                         show_positive=True, 
-                         show_negative=True,
-                         max_words=150,
-                         width=800,
-                         height=400):
-    """Visualisasi wordcloud dengan parameter"""
+def create_wordcloud_viz(df):
+    """Visualisasi wordcloud"""
     st.header("5. WORDCLOUD VISUALIZATION")
     
     # Fungsi untuk membuat wordcloud
@@ -488,10 +465,10 @@ def create_wordcloud_viz(df,
             return
         
         wordcloud = WordCloud(
-            width=width,
-            height=height,
+            width=800,
+            height=400,
             background_color='white',
-            max_words=max_words,
+            max_words=150,
             contour_width=3,
             contour_color=color,
             colormap='viridis' if color != 'darkred' else 'Reds'
@@ -512,42 +489,32 @@ def create_wordcloud_viz(df,
         st.write("---")
     
     try:
-        # Wordcloud untuk semua data jika parameter show_all True
-        if show_all:
-            all_text = ' '.join(df['processed_text'].astype(str).tolist())
-            create_wordcloud(all_text, 'WordCloud Semua Ulasan Gojek', 'steelblue')
+        # Wordcloud untuk semua data
+        all_text = ' '.join(df['processed_text'].astype(str).tolist())
+        create_wordcloud(all_text, 'WordCloud Semua Ulasan Gojek', 'steelblue')
         
-        # Wordcloud untuk positif jika parameter show_positive True
-        if show_positive:
-            positive_text = ' '.join(df[df['sentiment_label'] == 'positive']['processed_text'].astype(str).tolist())
-            create_wordcloud(positive_text, 'WordCloud - Ulasan Positif', 'green')
+        # Wordcloud untuk positif - PERBAIKAN DI SINI
+        positive_text = ' '.join(df[df['sentiment_label'] == 'positive']['processed_text'].astype(str).tolist())
+        create_wordcloud(positive_text, 'WordCloud - Ulasan Positif', 'green')
         
-        # Wordcloud untuk negatif jika parameter show_negative True
-        if show_negative:
-            negative_text = ' '.join(df[df['sentiment_label'] == 'negative']['processed_text'].astype(str).tolist())
-            create_wordcloud(negative_text, 'WordCloud - Ulasan Negatif', 'darkred')
+        # Wordcloud untuk negatif - PERBAIKAN DI SINI
+        negative_text = ' '.join(df[df['sentiment_label'] == 'negative']['processed_text'].astype(str).tolist())
+        create_wordcloud(negative_text, 'WordCloud - Ulasan Negatif', 'darkred')
         
     except Exception as e:
         st.error(f"Error membuat WordCloud: {str(e)}")
         st.info("Pastikan data telah diproses dengan benar pada section sebelumnya.")
 
-def tfidf_feature_extraction(df, 
-                             max_features=3000, 
-                             min_df=3, 
-                             max_df=0.8, 
-                             ngram_range=(1, 2),
-                             show_info=True,
-                             show_top_features=True,
-                             top_n=20):
-    """Ekstraksi fitur TF-IDF dengan parameter"""
+def tfidf_feature_extraction(df):
+    """Ekstraksi fitur TF-IDF"""
     st.header("6. EKSTRAKSI FITUR DENGAN TF-IDF")
     
-    # Inisialisasi TF-IDF Vectorizer dengan parameter
+    # Inisialisasi TF-IDF Vectorizer
     tfidf_vectorizer = TfidfVectorizer(
-        max_features=max_features,
-        min_df=min_df,
-        max_df=max_df,
-        ngram_range=ngram_range  # Unigram dan bigram
+        max_features=3000,
+        min_df=3,
+        max_df=0.8,
+        ngram_range=(1, 2)  # Unigram dan bigram
     )
     
     # Transformasi teks menjadi vektor TF-IDF
@@ -557,71 +524,56 @@ def tfidf_feature_extraction(df,
     
     st.success(f"Transformasi TF-IDF selesai!")
     
-    # Tampilkan informasi jika parameter show_info True
-    if show_info:
-        st.subheader("INFORMASI FITUR:")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Dimensi matriks TF-IDF", f"{X.shape}")
-        with col2:
-            st.metric("Jumlah fitur (kata unik)", f"{len(tfidf_vectorizer.get_feature_names_out())}")
+    st.subheader("INFORMASI FITUR:")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Dimensi matriks TF-IDF", f"{X.shape}")
+    with col2:
+        st.metric("Jumlah fitur (kata unik)", f"{len(tfidf_vectorizer.get_feature_names_out())}")
     
-    # Tampilkan fitur teratas jika parameter show_top_features True
-    if show_top_features:
-        st.subheader(f"Top {top_n} Fitur berdasarkan IDF (kata paling khas):")
-        
-        feature_names = tfidf_vectorizer.get_feature_names_out()
-        idf_values = tfidf_vectorizer.idf_
-        
-        top_indices = np.argsort(idf_values)[:top_n]
-        
-        top_features_data = []
-        for idx in top_indices:
-            top_features_data.append({
-                'Fitur': feature_names[idx],
-                'IDF Score': f"{idf_values[idx]:.4f}"
-            })
-        
-        top_features_df = pd.DataFrame(top_features_data)
-        st.dataframe(top_features_df)
+    # Tampilkan 20 fitur teratas berdasarkan IDF
+    st.subheader("Top 20 Fitur berdasarkan IDF (kata paling khas):")
+    
+    feature_names = tfidf_vectorizer.get_feature_names_out()
+    idf_values = tfidf_vectorizer.idf_
+    
+    top_indices = np.argsort(idf_values)[:20]
+    
+    top_features_data = []
+    for idx in top_indices:
+        top_features_data.append({
+            'Fitur': feature_names[idx],
+            'IDF Score': f"{idf_values[idx]:.4f}"
+        })
+    
+    top_features_df = pd.DataFrame(top_features_data)
+    st.dataframe(top_features_df)
     
     return X, y, tfidf_vectorizer
 
-def data_splitting(X, y, 
-                   ratios=None, 
-                   random_state=42, 
-                   stratify=True,
-                   show_details=True):
-    """Pembagian data training-testing dengan parameter"""
+def data_splitting(X, y):
+    """Pembagian data training-testing"""
     st.header("7. PEMBAGIAN DATA TRAINING-TESTING")
     
-    # Definisikan rasio default jika tidak disediakan
-    if ratios is None:
-        ratios = {
-            '80:20': 0.2,
-            '90:10': 0.1,
-            '70:30': 0.3
-        }
+    # Definisikan rasio
+    ratios = {
+        '80:20': 0.2,
+        '90:10': 0.1,
+        '70:30': 0.3
+    }
     
     results = {}
     
     for ratio_name, test_size in ratios.items():
         st.subheader(f"RASIO: {ratio_name}")
         
-        # Split data dengan parameter
-        if stratify:
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y,
-                test_size=test_size,
-                random_state=random_state,
-                stratify=y
-            )
-        else:
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y,
-                test_size=test_size,
-                random_state=random_state
-            )
+        # Split data
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y,
+            test_size=test_size,
+            random_state=42,
+            stratify=y
+        )
         
         # Hitung distribusi sentimen di training dan testing
         train_pos = sum(y_train == 1)
@@ -629,18 +581,16 @@ def data_splitting(X, y,
         test_pos = sum(y_test == 1)
         test_neg = sum(y_test == 0)
         
-        # Tampilkan detail jika parameter show_details True
-        if show_details:
-            col1, col2 = st.columns(2)
-            with col1:
-                st.write(f"**Training set:** {X_train.shape[0]} sampel")
-                st.write(f"- Positif: {train_pos} ({train_pos/X_train.shape[0]*100:.1f}%)")
-                st.write(f"- Negatif: {train_neg} ({train_neg/X_train.shape[0]*100:.1f}%)")
-            
-            with col2:
-                st.write(f"**Testing set:** {X_test.shape[0]} sampel")
-                st.write(f"- Positif: {test_pos} ({test_pos/X_test.shape[0]*100:.1f}%)")
-                st.write(f"- Negatif: {test_neg} ({test_neg/X_test.shape[0]*100:.1f}%)")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write(f"**Training set:** {X_train.shape[0]} sampel")
+            st.write(f"- Positif: {train_pos} ({train_pos/X_train.shape[0]*100:.1f}%)")
+            st.write(f"- Negatif: {train_neg} ({train_neg/X_train.shape[0]*100:.1f}%)")
+        
+        with col2:
+            st.write(f"**Testing set:** {X_test.shape[0]} sampel")
+            st.write(f"- Positif: {test_pos} ({test_pos/X_test.shape[0]*100:.1f}%)")
+            st.write(f"- Negatif: {test_neg} ({test_neg/X_test.shape[0]*100:.1f}%)")
         
         # Simpan hasil split
         results[ratio_name] = {
@@ -654,31 +604,54 @@ def data_splitting(X, y,
     
     return results
 
-def train_evaluate_svm(results, 
-                       kernels=None, 
-                       random_state=42, 
-                       C=1.0,
-                       show_comparison=True,
-                       show_visualization=True):
-    """Training dan evaluasi model SVM dengan parameter"""
+def train_evaluate_svm(results):
+    """Training dan evaluasi model SVM"""
     st.header("8. TRAINING DAN EVALUASI MODEL SVM")
     st.write("="*60)
     
-    # Daftar kernel default jika tidak disediakan
-    if kernels is None:
-        kernels = ['linear', 'poly']
+    # Tambahkan sidebar untuk parameter C dan Gamma
+    st.sidebar.subheader("Parameter SVM")
+    
+    # Parameter C (Regularization)
+    c_values = [0.1, 0.5, 1.0, 2.0, 5.0, 10.0]
+    selected_c = st.sidebar.selectbox(
+        "Pilih nilai C (Regularization):",
+        c_values,
+        index=2  # Default 1.0
+    )
+    
+    # Parameter Gamma (hanya untuk kernel 'poly')
+    gamma_values = ['scale', 'auto', 0.1, 0.5, 1.0, 2.0]
+    selected_gamma = st.sidebar.selectbox(
+        "Pilih nilai Gamma (untuk kernel poly):",
+        gamma_values,
+        index=0  # Default 'scale'
+    )
+    
+    st.sidebar.info(f"""
+    **Parameter yang dipilih:**
+    - C: {selected_c}
+    - Gamma: {selected_gamma}
+    """)
     
     def train_and_evaluate_svm(X_train, X_test, y_train, y_test, kernel_type='linear'):
         """Melatih dan mengevaluasi model SVM"""
-
+        
+        # Tentukan parameter gamma berdasarkan kernel
+        if kernel_type == 'poly':
+            gamma_param = selected_gamma
+        else:
+            gamma_param = 'scale'  # Default untuk kernel linear
+        
         svm_model = SVC(
             kernel=kernel_type,
-            random_state=random_state,
-            C=C,
+            C=selected_c,
+            gamma=gamma_param,
+            random_state=42,
             probability=True if kernel_type == 'poly' else False
         )
 
-        with st.spinner(f"Training SVM dengan kernel {kernel_type}..."):
+        with st.spinner(f"Training SVM dengan kernel {kernel_type} (C={selected_c}, gamma={gamma_param})..."):
             svm_model.fit(X_train, y_train)
 
         # Prediksi
@@ -706,7 +679,11 @@ def train_evaluate_svm(results,
             'predictions': y_pred,
             'y_true': y_test,
             'neg_accuracy': neg_accuracy,
-            'pos_accuracy': pos_accuracy
+            'pos_accuracy': pos_accuracy,
+            'params': {
+                'C': selected_c,
+                'gamma': gamma_param
+            }
         }
     
     # Loop untuk setiap rasio dan kernel
@@ -719,7 +696,7 @@ def train_evaluate_svm(results,
         
         ratio_results = {}
         
-        for kernel in kernels:
+        for kernel in ['linear', 'poly']:
             st.write(f"\n**Kernel: {kernel}**")
             
             result = train_and_evaluate_svm(
@@ -731,6 +708,9 @@ def train_evaluate_svm(results,
             )
             
             ratio_results[kernel] = result
+            
+            # Tampilkan parameter yang digunakan
+            st.write(f"**Parameter:** C={result['params']['C']}, Gamma={result['params']['gamma']}")
             
             # Tampilkan akurasi umum
             st.write(f"**Akurasi Keseluruhan: {result['accuracy']:.4f}**")
@@ -779,25 +759,24 @@ def train_evaluate_svm(results,
             st.table(eval_df)
             
             # Visualisasi perbandingan akurasi
-            if show_visualization:
-                fig_acc, ax_acc = plt.subplots(figsize=(8, 4))
-                categories = ['Keseluruhan', 'Negatif', 'Positif']
-                acc_values = [result['accuracy'], result['neg_accuracy'], result['pos_accuracy']]
-                colors = ['#3498db', '#e74c3c', '#2ecc71']
-                
-                bars = ax_acc.bar(categories, acc_values, color=colors, alpha=0.7)
-                ax_acc.set_ylabel('Akurasi')
-                ax_acc.set_title(f'Perbandingan Akurasi - Kernel {kernel}')
-                ax_acc.set_ylim(0, 1.0)
-                ax_acc.grid(True, alpha=0.3, axis='y')
-                
-                # Tambahkan nilai di atas bar
-                for bar, value in zip(bars, acc_values):
-                    height = bar.get_height()
-                    ax_acc.text(bar.get_x() + bar.get_width()/2., height + 0.01,
-                              f'{value:.4f}', ha='center', va='bottom', fontsize=10)
-                
-                st.pyplot(fig_acc)
+            fig_acc, ax_acc = plt.subplots(figsize=(8, 4))
+            categories = ['Keseluruhan', 'Negatif', 'Positif']
+            acc_values = [result['accuracy'], result['neg_accuracy'], result['pos_accuracy']]
+            colors = ['#3498db', '#e74c3c', '#2ecc71']
+            
+            bars = ax_acc.bar(categories, acc_values, color=colors, alpha=0.7)
+            ax_acc.set_ylabel('Akurasi')
+            ax_acc.set_title(f'Perbandingan Akurasi - Kernel {kernel} (C={selected_c})')
+            ax_acc.set_ylim(0, 1.0)
+            ax_acc.grid(True, alpha=0.3, axis='y')
+            
+            # Tambahkan nilai di atas bar
+            for bar, value in zip(bars, acc_values):
+                height = bar.get_height()
+                ax_acc.text(bar.get_x() + bar.get_width()/2., height + 0.01,
+                          f'{value:.4f}', ha='center', va='bottom', fontsize=10)
+            
+            st.pyplot(fig_acc)
             
             # Tampilkan detail classification report
             with st.expander(f"Detail Classification Report - {kernel}"):
@@ -837,6 +816,8 @@ def train_evaluate_svm(results,
             accuracy_comparison.append({
                 'Rasio': ratio_name,
                 'Kernel': kernel,
+                'C': selected_c,
+                'Gamma': result['params']['gamma'],
                 'Akurasi_Keseluruhan': result['accuracy'],
                 'Akurasi_Negatif': result['neg_accuracy'],
                 'Akurasi_Positif': result['pos_accuracy'],
@@ -854,61 +835,62 @@ def train_evaluate_svm(results,
         
         all_results[ratio_name] = ratio_results
         
-        # Tampilkan perbandingan jika parameter show_comparison True
-        if show_comparison:
-            st.subheader(f"PERBANDINGAN KERNEL UNTUK RASIO {ratio_name}")
-            comparison_data = []
-            for kernel in kernels:
-                if kernel in ratio_results:
-                    result = ratio_results[kernel]
-                    comparison_data.append({
-                        'Kernel': kernel,
-                        'Akurasi Keseluruhan': f"{result['accuracy']:.4f}",
-                        'Akurasi Negatif': f"{result['neg_accuracy']:.4f}",
-                        'Akurasi Positif': f"{result['pos_accuracy']:.4f}",
-                        'Precision (Negatif)': f"{result['classification_report']['negative']['precision']:.4f}",
-                        'Recall (Negatif)': f"{result['classification_report']['negative']['recall']:.4f}",
-                        'F1-Score (Negatif)': f"{result['classification_report']['negative']['f1-score']:.4f}",
-                        'Precision (Positif)': f"{result['classification_report']['positive']['precision']:.4f}",
-                        'Recall (Positif)': f"{result['classification_report']['positive']['recall']:.4f}",
-                        'F1-Score (Positif)': f"{result['classification_report']['positive']['f1-score']:.4f}"
-                    })
-            
-            comparison_df = pd.DataFrame(comparison_data)
-            st.dataframe(comparison_df, use_container_width=True)
-            
-            # Visualisasi perbandingan kernel untuk rasio ini
-            if show_visualization:
-                fig_kernel, ax_kernel = plt.subplots(figsize=(10, 6))
-                
-                x = np.arange(len(kernels))
-                width = 0.25
-                
-                # Data untuk plot
-                overall_acc = [ratio_results[k]['accuracy'] for k in kernels]
-                neg_acc = [ratio_results[k]['neg_accuracy'] for k in kernels]
-                pos_acc = [ratio_results[k]['pos_accuracy'] for k in kernels]
-                
-                ax_kernel.bar(x - width, overall_acc, width, label='Akurasi Keseluruhan', color='#3498db')
-                ax_kernel.bar(x, neg_acc, width, label='Akurasi Negatif', color='#e74c3c')
-                ax_kernel.bar(x + width, pos_acc, width, label='Akurasi Positif', color='#2ecc71')
-                
-                ax_kernel.set_xlabel('Kernel')
-                ax_kernel.set_ylabel('Akurasi')
-                ax_kernel.set_title(f'Perbandingan Akurasi Berbagai Kernel - Rasio {ratio_name}')
-                ax_kernel.set_xticks(x)
-                ax_kernel.set_xticklabels(kernels)
-                ax_kernel.set_ylim(0, 1.0)
-                ax_kernel.legend()
-                ax_kernel.grid(True, alpha=0.3, axis='y')
-                
-                # Tambahkan nilai di atas bar
-                for i, (overall, neg, pos) in enumerate(zip(overall_acc, neg_acc, pos_acc)):
-                    ax_kernel.text(i - width, overall + 0.01, f'{overall:.3f}', ha='center', fontsize=9)
-                    ax_kernel.text(i, neg + 0.01, f'{neg:.3f}', ha='center', fontsize=9)
-                    ax_kernel.text(i + width, pos + 0.01, f'{pos:.3f}', ha='center', fontsize=9)
-                
-                st.pyplot(fig_kernel)
+        # Tampilkan tabel perbandingan untuk rasio ini
+        st.subheader(f"PERBANDINGAN KERNEL UNTUK RASIO {ratio_name}")
+        comparison_data = []
+        for kernel in ['linear', 'poly']:
+            if kernel in ratio_results:
+                result = ratio_results[kernel]
+                comparison_data.append({
+                    'Kernel': kernel,
+                    'C': result['params']['C'],
+                    'Gamma': result['params']['gamma'],
+                    'Akurasi Keseluruhan': f"{result['accuracy']:.4f}",
+                    'Akurasi Negatif': f"{result['neg_accuracy']:.4f}",
+                    'Akurasi Positif': f"{result['pos_accuracy']:.4f}",
+                    'Precision (Negatif)': f"{result['classification_report']['negative']['precision']:.4f}",
+                    'Recall (Negatif)': f"{result['classification_report']['negative']['recall']:.4f}",
+                    'F1-Score (Negatif)': f"{result['classification_report']['negative']['f1-score']:.4f}",
+                    'Precision (Positif)': f"{result['classification_report']['positive']['precision']:.4f}",
+                    'Recall (Positif)': f"{result['classification_report']['positive']['recall']:.4f}",
+                    'F1-Score (Positif)': f"{result['classification_report']['positive']['f1-score']:.4f}"
+                })
+        
+        comparison_df = pd.DataFrame(comparison_data)
+        st.dataframe(comparison_df, use_container_width=True)
+        
+        # Visualisasi perbandingan kernel untuk rasio ini
+        fig_kernel, ax_kernel = plt.subplots(figsize=(10, 6))
+        
+        kernels = ['linear', 'poly']
+        x = np.arange(len(kernels))
+        width = 0.25
+        
+        # Data untuk plot
+        overall_acc = [ratio_results[k]['accuracy'] for k in kernels]
+        neg_acc = [ratio_results[k]['neg_accuracy'] for k in kernels]
+        pos_acc = [ratio_results[k]['pos_accuracy'] for k in kernels]
+        
+        ax_kernel.bar(x - width, overall_acc, width, label='Akurasi Keseluruhan', color='#3498db')
+        ax_kernel.bar(x, neg_acc, width, label='Akurasi Negatif', color='#e74c3c')
+        ax_kernel.bar(x + width, pos_acc, width, label='Akurasi Positif', color='#2ecc71')
+        
+        ax_kernel.set_xlabel('Kernel')
+        ax_kernel.set_ylabel('Akurasi')
+        ax_kernel.set_title(f'Perbandingan Akurasi Berbagai Kernel - Rasio {ratio_name}\nC={selected_c}')
+        ax_kernel.set_xticks(x)
+        ax_kernel.set_xticklabels(kernels)
+        ax_kernel.set_ylim(0, 1.0)
+        ax_kernel.legend()
+        ax_kernel.grid(True, alpha=0.3, axis='y')
+        
+        # Tambahkan nilai di atas bar
+        for i, (overall, neg, pos) in enumerate(zip(overall_acc, neg_acc, pos_acc)):
+            ax_kernel.text(i - width, overall + 0.01, f'{overall:.3f}', ha='center', fontsize=9)
+            ax_kernel.text(i, neg + 0.01, f'{neg:.3f}', ha='center', fontsize=9)
+            ax_kernel.text(i + width, pos + 0.01, f'{pos:.3f}', ha='center', fontsize=9)
+        
+        st.pyplot(fig_kernel)
         
         st.write("="*50)
     
@@ -920,6 +902,8 @@ def train_evaluate_svm(results,
         summary_data.append({
             'Rasio': item['Rasio'],
             'Kernel': item['Kernel'],
+            'C': item['C'],
+            'Gamma': item['Gamma'],
             'Akurasi': f"{item['Akurasi_Keseluruhan']:.4f}",
             'Akurasi_Neg': f"{item['Akurasi_Negatif']:.4f}",
             'Akurasi_Pos': f"{item['Akurasi_Positif']:.4f}",
@@ -937,180 +921,156 @@ def train_evaluate_svm(results,
     st.dataframe(summary_df, use_container_width=True)
     
     # Visualisasi perbandingan semua model
-    if show_visualization:
-        st.subheader("VISUALISASI PERBANDINGAN SEMUA MODEL")
+    st.subheader("VISUALISASI PERBANDINGAN SEMUA MODEL")
+    
+    # Persiapkan data untuk visualisasi
+    if accuracy_comparison:
+        vis_df = pd.DataFrame(accuracy_comparison)
         
-        # Persiapkan data untuk visualisasi
-        if accuracy_comparison:
-            vis_df = pd.DataFrame(accuracy_comparison)
-            
-            # Buat multi-index untuk plotting
-            fig_all, axes = plt.subplots(2, 2, figsize=(15, 12))
-            
-            # Plot 1: Perbandingan akurasi keseluruhan
-            ax1 = axes[0, 0]
-            sns.barplot(data=vis_df, x='Rasio', y='Akurasi_Keseluruhan', hue='Kernel', ax=ax1)
-            ax1.set_title('Akurasi Keseluruhan per Rasio dan Kernel')
-            ax1.set_ylabel('Akurasi')
-            ax1.set_ylim(0, 1.0)
-            ax1.legend(title='Kernel')
-            ax1.grid(True, alpha=0.3, axis='y')
-            
-            # Tambahkan nilai di atas bar
-            for container in ax1.containers:
-                ax1.bar_label(container, fmt='%.3f', fontsize=9)
-            
-            # Plot 2: Perbandingan akurasi negatif
-            ax2 = axes[0, 1]
-            sns.barplot(data=vis_df, x='Rasio', y='Akurasi_Negatif', hue='Kernel', ax=ax2)
-            ax2.set_title('Akurasi Kelas Negatif per Rasio dan Kernel')
-            ax2.set_ylabel('Akurasi')
-            ax2.set_ylim(0, 1.0)
-            ax2.legend(title='Kernel')
-            ax2.grid(True, alpha=0.3, axis='y')
-            
-            # Tambahkan nilai di atas bar
-            for container in ax2.containers:
-                ax2.bar_label(container, fmt='%.3f', fontsize=9)
-            
-            # Plot 3: Perbandingan akurasi positif
-            ax3 = axes[1, 0]
-            sns.barplot(data=vis_df, x='Rasio', y='Akurasi_Positif', hue='Kernel', ax=ax3)
-            ax3.set_title('Akurasi Kelas Positif per Rasio dan Kernel')
-            ax3.set_ylabel('Akurasi')
-            ax3.set_ylim(0, 1.0)
-            ax3.legend(title='Kernel')
-            ax3.grid(True, alpha=0.3, axis='y')
-            
-            # Tambahkan nilai di atas bar
-            for container in ax3.containers:
-                ax3.bar_label(container, fmt='%.3f', fontsize=9)
-            
-            # Plot 4: Perbandingan selisih akurasi positif-negatif
-            ax4 = axes[1, 1]
-            vis_df['Selisih_Akurasi'] = vis_df['Akurasi_Positif'] - vis_df['Akurasi_Negatif']
-            sns.barplot(data=vis_df, x='Rasio', y='Selisih_Akurasi', hue='Kernel', ax=ax4)
-            ax4.set_title('Selisih Akurasi (Positif - Negatif) per Rasio dan Kernel')
-            ax4.set_ylabel('Selisih Akurasi')
-            ax4.axhline(y=0, color='black', linestyle='-', linewidth=0.5)
-            ax4.legend(title='Kernel')
-            ax4.grid(True, alpha=0.3, axis='y')
-            
-            # Tambahkan nilai di atas bar
-            for container in ax4.containers:
-                ax4.bar_label(container, fmt='%.3f', fontsize=9)
-            
-            plt.tight_layout()
-            st.pyplot(fig_all)
-            
-            # Analisis performa per kelas
-            st.subheader("ANALISIS PERFORMA PER KELAS")
-            
-            # Hitung rata-rata akurasi per kelas
-            avg_neg_acc = vis_df['Akurasi_Negatif'].mean()
-            avg_pos_acc = vis_df['Akurasi_Positif'].mean()
-            
-            col_avg1, col_avg2 = st.columns(2)
-            with col_avg1:
-                st.metric("Rata-rata Akurasi Kelas Negatif", f"{avg_neg_acc:.4f}")
-            with col_avg2:
-                st.metric("Rata-rata Akurasi Kelas Positif", f"{avg_pos_acc:.4f}")
-            
-            # Identifikasi model terbaik per kelas
-            best_neg_idx = vis_df['Akurasi_Negatif'].idxmax()
-            best_pos_idx = vis_df['Akurasi_Positif'].idxmax()
-            
-            st.write("**Model Terbaik untuk Kelas Negatif:**")
-            st.write(f"- Rasio: {vis_df.loc[best_neg_idx, 'Rasio']}")
-            st.write(f"- Kernel: {vis_df.loc[best_neg_idx, 'Kernel']}")
-            st.write(f"- Akurasi: {vis_df.loc[best_neg_idx, 'Akurasi_Negatif']:.4f}")
-            
-            st.write("**Model Terbaik untuk Kelas Positif:**")
-            st.write(f"- Rasio: {vis_df.loc[best_pos_idx, 'Rasio']}")
-            st.write(f"- Kernel: {vis_df.loc[best_pos_idx, 'Kernel']}")
-            st.write(f"- Akurasi: {vis_df.loc[best_pos_idx, 'Akurasi_Positif']:.4f}")
-            
-            # Rekomendasi model berdasarkan keseimbangan akurasi
-            st.write("**Rekomendasi Model Berdasarkan Keseimbangan Akurasi:**")
-            
-            # Hitung selisih absolut antara akurasi positif dan negatif
-            vis_df['Selisih_Absolut'] = abs(vis_df['Akurasi_Positif'] - vis_df['Akurasi_Negatif'])
-            
-            # Cari model dengan selisih terkecil (paling seimbang)
-            most_balanced_idx = vis_df['Selisih_Absolut'].idxmin()
-            
-            st.write(f"**Model Paling Seimbang:**")
-            st.write(f"- Rasio: {vis_df.loc[most_balanced_idx, 'Rasio']}")
-            st.write(f"- Kernel: {vis_df.loc[most_balanced_idx, 'Kernel']}")
-            st.write(f"- Akurasi Negatif: {vis_df.loc[most_balanced_idx, 'Akurasi_Negatif']:.4f}")
-            st.write(f"- Akurasi Positif: {vis_df.loc[most_balanced_idx, 'Akurasi_Positif']:.4f}")
-            st.write(f"- Selisih: {vis_df.loc[most_balanced_idx, 'Selisih_Absolut']:.4f}")
+        # Buat multi-index untuk plotting
+        fig_all, axes = plt.subplots(2, 2, figsize=(15, 12))
+        
+        # Plot 1: Perbandingan akurasi keseluruhan
+        ax1 = axes[0, 0]
+        sns.barplot(data=vis_df, x='Rasio', y='Akurasi_Keseluruhan', hue='Kernel', ax=ax1)
+        ax1.set_title('Akurasi Keseluruhan per Rasio dan Kernel\n(C={selected_c})')
+        ax1.set_ylabel('Akurasi')
+        ax1.set_ylim(0, 1.0)
+        ax1.legend(title='Kernel')
+        ax1.grid(True, alpha=0.3, axis='y')
+        
+        # Tambahkan nilai di atas bar
+        for container in ax1.containers:
+            ax1.bar_label(container, fmt='%.3f', fontsize=9)
+        
+        # Plot 2: Perbandingan akurasi negatif
+        ax2 = axes[0, 1]
+        sns.barplot(data=vis_df, x='Rasio', y='Akurasi_Negatif', hue='Kernel', ax=ax2)
+        ax2.set_title('Akurasi Kelas Negatif per Rasio dan Kernel\n(C={selected_c})')
+        ax2.set_ylabel('Akurasi')
+        ax2.set_ylim(0, 1.0)
+        ax2.legend(title='Kernel')
+        ax2.grid(True, alpha=0.3, axis='y')
+        
+        # Tambahkan nilai di atas bar
+        for container in ax2.containers:
+            ax2.bar_label(container, fmt='%.3f', fontsize=9)
+        
+        # Plot 3: Perbandingan akurasi positif
+        ax3 = axes[1, 0]
+        sns.barplot(data=vis_df, x='Rasio', y='Akurasi_Positif', hue='Kernel', ax=ax3)
+        ax3.set_title('Akurasi Kelas Positif per Rasio dan Kernel\n(C={selected_c})')
+        ax3.set_ylabel('Akurasi')
+        ax3.set_ylim(0, 1.0)
+        ax3.legend(title='Kernel')
+        ax3.grid(True, alpha=0.3, axis='y')
+        
+        # Tambahkan nilai di atas bar
+        for container in ax3.containers:
+            ax3.bar_label(container, fmt='%.3f', fontsize=9)
+        
+        # Plot 4: Perbandingan selisih akurasi positif-negatif
+        ax4 = axes[1, 1]
+        vis_df['Selisih_Akurasi'] = vis_df['Akurasi_Positif'] - vis_df['Akurasi_Negatif']
+        sns.barplot(data=vis_df, x='Rasio', y='Selisih_Akurasi', hue='Kernel', ax=ax4)
+        ax4.set_title('Selisih Akurasi (Positif - Negatif) per Rasio dan Kernel\n(C={selected_c})')
+        ax4.set_ylabel('Selisih Akurasi')
+        ax4.axhline(y=0, color='black', linestyle='-', linewidth=0.5)
+        ax4.legend(title='Kernel')
+        ax4.grid(True, alpha=0.3, axis='y')
+        
+        # Tambahkan nilai di atas bar
+        for container in ax4.containers:
+            ax4.bar_label(container, fmt='%.3f', fontsize=9)
+        
+        plt.tight_layout()
+        st.pyplot(fig_all)
+        
+        # Analisis performa per kelas
+        st.subheader("ANALISIS PERFORMA PER KELAS")
+        
+        # Hitung rata-rata akurasi per kelas
+        avg_neg_acc = vis_df['Akurasi_Negatif'].mean()
+        avg_pos_acc = vis_df['Akurasi_Positif'].mean()
+        
+        col_avg1, col_avg2 = st.columns(2)
+        with col_avg1:
+            st.metric("Rata-rata Akurasi Kelas Negatif", f"{avg_neg_acc:.4f}")
+        with col_avg2:
+            st.metric("Rata-rata Akurasi Kelas Positif", f"{avg_pos_acc:.4f}")
+        
+        # Identifikasi model terbaik per kelas
+        best_neg_idx = vis_df['Akurasi_Negatif'].idxmax()
+        best_pos_idx = vis_df['Akurasi_Positif'].idxmax()
+        
+        st.write("**Model Terbaik untuk Kelas Negatif:**")
+        st.write(f"- Rasio: {vis_df.loc[best_neg_idx, 'Rasio']}")
+        st.write(f"- Kernel: {vis_df.loc[best_neg_idx, 'Kernel']}")
+        st.write(f"- C: {vis_df.loc[best_neg_idx, 'C']}")
+        st.write(f"- Gamma: {vis_df.loc[best_neg_idx, 'Gamma']}")
+        st.write(f"- Akurasi: {vis_df.loc[best_neg_idx, 'Akurasi_Negatif']:.4f}")
+        
+        st.write("**Model Terbaik untuk Kelas Positif:**")
+        st.write(f"- Rasio: {vis_df.loc[best_pos_idx, 'Rasio']}")
+        st.write(f"- Kernel: {vis_df.loc[best_pos_idx, 'Kernel']}")
+        st.write(f"- C: {vis_df.loc[best_pos_idx, 'C']}")
+        st.write(f"- Gamma: {vis_df.loc[best_pos_idx, 'Gamma']}")
+        st.write(f"- Akurasi: {vis_df.loc[best_pos_idx, 'Akurasi_Positif']:.4f}")
+        
+        # Rekomendasi model berdasarkan keseimbangan akurasi
+        st.write("**Rekomendasi Model Berdasarkan Keseimbangan Akurasi:**")
+        
+        # Hitung selisih absolut antara akurasi positif dan negatif
+        vis_df['Selisih_Absolut'] = abs(vis_df['Akurasi_Positif'] - vis_df['Akurasi_Negatif'])
+        
+        # Cari model dengan selisih terkecil (paling seimbang)
+        most_balanced_idx = vis_df['Selisih_Absolut'].idxmin()
+        
+        st.write(f"**Model Paling Seimbang:**")
+        st.write(f"- Rasio: {vis_df.loc[most_balanced_idx, 'Rasio']}")
+        st.write(f"- Kernel: {vis_df.loc[most_balanced_idx, 'Kernel']}")
+        st.write(f"- C: {vis_df.loc[most_balanced_idx, 'C']}")
+        st.write(f"- Gamma: {vis_df.loc[most_balanced_idx, 'Gamma']}")
+        st.write(f"- Akurasi Negatif: {vis_df.loc[most_balanced_idx, 'Akurasi_Negatif']:.4f}")
+        st.write(f"- Akurasi Positif: {vis_df.loc[most_balanced_idx, 'Akurasi_Positif']:.4f}")
+        st.write(f"- Selisih: {vis_df.loc[most_balanced_idx, 'Selisih_Absolut']:.4f}")
     
     return all_results, accuracy_comparison
 
-def visualize_results(all_results, 
-                      accuracy_comparison, 
-                      show_confusion_matrix=True,
-                      show_accuracy_comparison=True,
-                      show_heatmap=True):
-    """Visualisasi hasil dengan parameter"""
+def visualize_results(all_results, accuracy_comparison):
+    """Visualisasi hasil"""
     st.header("9. VISUALISASI HASIL")
     
-    # Plot confusion matrix jika parameter show_confusion_matrix True
-    if show_confusion_matrix:
-        st.subheader("Confusion Matrix")
+    # Plot confusion matrix untuk setiap kombinasi
+    st.subheader("Confusion Matrix")
+    
+    # Hitung total plot yang akan dibuat
+    total_plots = 0
+    for ratio_name, ratio_results in all_results.items():
+        total_plots += len(ratio_results)
+    
+    # Buat layout subplot yang sesuai
+    n_rows = 2
+    n_cols = 3  # Untuk 6 plot (3 rasio × 2 kernel)
+    
+    if total_plots <= n_rows * n_cols:
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 8))
         
-        # Hitung total plot yang akan dibuat
-        total_plots = 0
+        # Jika hanya ada 1 baris, axes bukan array 2D
+        if n_rows == 1:
+            axes = axes.reshape(1, -1)
+        elif n_cols == 1:
+            axes = axes.reshape(-1, 1)
+        
+        axes = axes.flatten()
+        
+        idx = 0
         for ratio_name, ratio_results in all_results.items():
-            total_plots += len(ratio_results)
-        
-        # Buat layout subplot yang sesuai
-        n_rows = 2
-        n_cols = 3  # Untuk 6 plot (3 rasio × 2 kernel)
-        
-        if total_plots <= n_rows * n_cols:
-            fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 8))
-            
-            # Jika hanya ada 1 baris, axes bukan array 2D
-            if n_rows == 1:
-                axes = axes.reshape(1, -1)
-            elif n_cols == 1:
-                axes = axes.reshape(-1, 1)
-            
-            axes = axes.flatten()
-            
-            idx = 0
-            for ratio_name, ratio_results in all_results.items():
-                for kernel_name, result in ratio_results.items():
-                    if idx < len(axes):
-                        cm = result['confusion_matrix']
-                        ax = axes[idx]
-                        
-                        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                                    xticklabels=['Negatif', 'Positif'],
-                                    yticklabels=['Negatif', 'Positif'],
-                                    ax=ax)
-                        
-                        ax.set_title(f'Rasio {ratio_name} - Kernel {kernel_name}\nAkurasi: {result["accuracy"]:.4f}')
-                        ax.set_xlabel('Predicted')
-                        ax.set_ylabel('Actual')
-                        
-                        idx += 1
-            
-            # Sembunyikan axes yang tidak digunakan
-            for i in range(idx, len(axes)):
-                axes[i].set_visible(False)
-            
-            plt.tight_layout()
-            st.pyplot(fig)
-        else:
-            # Jika terlalu banyak plot, tampilkan satu per satu
-            for ratio_name, ratio_results in all_results.items():
-                for kernel_name, result in ratio_results.items():
+            for kernel_name, result in ratio_results.items():
+                if idx < len(axes):
                     cm = result['confusion_matrix']
+                    ax = axes[idx]
                     
-                    fig, ax = plt.subplots(figsize=(6, 5))
                     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
                                 xticklabels=['Negatif', 'Positif'],
                                 yticklabels=['Negatif', 'Positif'],
@@ -1120,13 +1080,37 @@ def visualize_results(all_results,
                     ax.set_xlabel('Predicted')
                     ax.set_ylabel('Actual')
                     
-                    plt.tight_layout()
-                    st.pyplot(fig)
-    
-    # Perbandingan akurasi jika parameter show_accuracy_comparison True
-    if show_accuracy_comparison and accuracy_comparison:
-        st.subheader("Perbandingan Akurasi")
+                    idx += 1
         
+        # Sembunyikan axes yang tidak digunakan
+        for i in range(idx, len(axes)):
+            axes[i].set_visible(False)
+        
+        plt.tight_layout()
+        st.pyplot(fig)
+    else:
+        # Jika terlalu banyak plot, tampilkan satu per satu
+        for ratio_name, ratio_results in all_results.items():
+            for kernel_name, result in ratio_results.items():
+                cm = result['confusion_matrix']
+                
+                fig, ax = plt.subplots(figsize=(6, 5))
+                sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+                            xticklabels=['Negatif', 'Positif'],
+                            yticklabels=['Negatif', 'Positif'],
+                            ax=ax)
+                
+                ax.set_title(f'Rasio {ratio_name} - Kernel {kernel_name}\nAkurasi: {result["accuracy"]:.4f}')
+                ax.set_xlabel('Predicted')
+                ax.set_ylabel('Actual')
+                
+                plt.tight_layout()
+                st.pyplot(fig)
+    
+    # Perbandingan akurasi - DIPERBAIKI
+    st.subheader("Perbandingan Akurasi")
+    
+    if accuracy_comparison:
         accuracy_df = pd.DataFrame(accuracy_comparison)
         
         # Rename kolom untuk konsistensi
@@ -1204,21 +1188,20 @@ def visualize_results(all_results,
         plt.tight_layout()
         st.pyplot(fig)
         
-        # Heatmap perbandingan jika parameter show_heatmap True
-        if show_heatmap:
-            st.subheader("Heatmap Perbandingan Performa Model")
+        # Visualisasi tambahan: Heatmap perbandingan
+        st.subheader("Heatmap Perbandingan Performa Model")
+        
+        if not accuracy_df.empty and 'Rasio' in accuracy_df.columns and 'Kernel' in accuracy_df.columns:
+            # Buat pivot table untuk heatmap
+            heatmap_data = accuracy_df.pivot(index='Rasio', columns='Kernel', values='Akurasi')
             
-            if not accuracy_df.empty and 'Rasio' in accuracy_df.columns and 'Kernel' in accuracy_df.columns:
-                # Buat pivot table untuk heatmap
-                heatmap_data = accuracy_df.pivot(index='Rasio', columns='Kernel', values='Akurasi')
-                
-                fig_heat, ax_heat = plt.subplots(figsize=(8, 6))
-                sns.heatmap(heatmap_data, annot=True, fmt='.4f', cmap='YlOrRd', 
-                           linewidths=1, linecolor='white', ax=ax_heat)
-                ax_heat.set_title('Heatmap Akurasi Model\n(Semakin Gelap = Akurasi Lebih Tinggi)', fontsize=14)
-                ax_heat.set_xlabel('Kernel')
-                ax_heat.set_ylabel('Rasio Pembagian Data')
-                st.pyplot(fig_heat)
+            fig_heat, ax_heat = plt.subplots(figsize=(8, 6))
+            sns.heatmap(heatmap_data, annot=True, fmt='.4f', cmap='YlOrRd', 
+                       linewidths=1, linecolor='white', ax=ax_heat)
+            ax_heat.set_title('Heatmap Akurasi Model\n(Semakin Gelap = Akurasi Lebih Tinggi)', fontsize=14)
+            ax_heat.set_xlabel('Kernel')
+            ax_heat.set_ylabel('Rasio Pembagian Data')
+            st.pyplot(fig_heat)
         
         # Tampilkan tabel perbandingan dengan format yang lebih baik
         st.subheader("Tabel Perbandingan Akurasi Model")
@@ -1281,7 +1264,7 @@ def visualize_results(all_results,
     
     return accuracy_df if accuracy_comparison else None
 
-def classify_new_sentences(all_results, tfidf_vectorizer, user_input_height=100):
+def classify_new_sentences(all_results, tfidf_vectorizer):
     """Klasifikasi kalimat baru dengan penanganan kalimat rancu"""
     st.header("10. KLASIFIKASI KALIMAT BARU")
     
@@ -1542,11 +1525,11 @@ def classify_new_sentences(all_results, tfidf_vectorizer, user_input_height=100)
     
     st.info("MASUKKAN KALIMAT UNTUK DIKLASIFIKASIKAN")
     
-    # Input text dengan parameter user_input_height
+    # Input text dengan contoh kalimat negasi
     user_input = st.text_area(
         "Masukkan kalimat untuk dianalisis:",
         "",
-        height=user_input_height
+        height=100
     )
     
     col1, col2 = st.columns(2)
