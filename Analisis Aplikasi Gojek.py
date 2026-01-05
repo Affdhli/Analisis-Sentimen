@@ -1587,7 +1587,7 @@ def main():
     setup_page()
     
     # Sidebar untuk navigasi
-    st.sidebar.title("Navigasi Analisis")
+    st.sidebar.title("Fitur Analisis")
     sections = [
         "1. Upload Data",
         "2. Analisis Jumlah Kata", 
