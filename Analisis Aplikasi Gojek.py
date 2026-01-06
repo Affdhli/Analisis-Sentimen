@@ -15,10 +15,6 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 import warnings
 warnings.filterwarnings('ignore')
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
-import pickle
-import json
-from datetime import datetime
-import io
 
 # Download NLTK resources
 nltk.download('punkt')
