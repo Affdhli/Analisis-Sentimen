@@ -98,37 +98,6 @@ def upload_data():
             st.metric("Total Kata", f"{df['jumlah_kata'].sum():,}")
         with col3:
             st.metric("Rata-rata Kata", f"{df['jumlah_kata'].mean():.1f}")
-            
-    # Tampilkan distribusi sentimen awal jika ada
-        if 'sentimen' in df.columns:
-            st.subheader("Distribusi Sentimen Awal")
-            sentiment_counts = df['sentimen'].value_counts()
-            
-            fig, ax = plt.subplots(figsize=(8, 4))
-            colors = ['#2ecc71', '#e74c3c']
-            
-            # Pastikan warna sesuai dengan jumlah kategori
-            if len(sentiment_counts) == 2:
-                bar_colors = colors
-            else:
-                bar_colors = plt.cm.Set3(range(len(sentiment_counts)))
-            
-            ax.bar(sentiment_counts.index, sentiment_counts.values, color=bar_colors, alpha=0.7)
-            ax.set_xlabel('Sentimen')
-            ax.set_ylabel('Jumlah')
-            ax.set_title('Distribusi Sentimen Awal')
-            
-            for i, v in enumerate(sentiment_counts.values):
-                ax.text(i, v + max(sentiment_counts.values)*0.01, str(v), ha='center')
-            
-            st.pyplot(fig)
-            
-            # Pie chart
-            fig2, ax2 = plt.subplots(figsize=(6, 6))
-            ax2.pie(sentiment_counts.values, labels=sentiment_counts.index, 
-                    autopct='%1.1f%%', startangle=90)
-            ax2.set_title('Persentase Sentimen')
-            st.pyplot(fig2)
         
         # Tampilkan contoh data
         with st.expander("Contoh Data (5 baris pertama)"):
