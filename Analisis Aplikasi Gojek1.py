@@ -1455,18 +1455,13 @@ def implementasi_sistem():
     
     # Cek apakah model sudah disimpan
     if 'best_model' not in st.session_state:
-        st.warning("""
-        ⚠️ **Model belum tersedia!**
-        
-        Silakan lakukan training model terlebih dahulu di section **"7. Training & Evaluasi SVM"**.
-        Setelah training selesai, model akan otomatis disimpan.
-        """)
+        st.warning("Model belum tersedia! Silakan lakukan training model terlebih dahulu di section Training & Evaluasi SVM. Setelah training selesai, model akan otomatis disimpan.")
         return
     
     # Tampilkan informasi model terbaik
     model_info = st.session_state.best_model
     
-    st.success("✅ **MODEL TERBAIK TERSEDIA:**")
+    st.success("MODEL TERBAIK TERSEDIA:")
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -1486,203 +1481,78 @@ def implementasi_sistem():
                     break
     
     # Input untuk klasifikasi
-    st.subheader("🔍 INPUT UNTUK KLASIFIKASI")
+    st.subheader("INPUT UNTUK KLASIFIKASI")
     
-    # Pilihan mode input
-    input_mode = st.radio(
-        "Pilih mode input:",
-        ["Single Sentence", "Multiple Sentences"]
+    # Input kalimat tunggal
+    user_input = st.text_area(
+        "Masukkan kalimat untuk dianalisis sentimennya:",
+        "Driver sangat ramah dan cepat dalam melayani",
+        height=100
     )
     
-    if input_mode == "Single Sentence":
-        # Input kalimat tunggal
-        user_input = st.text_area(
-            "Masukkan kalimat untuk dianalisis sentimennya:",
-            "Driver sangat ramah dan cepat dalam melayani",
-            height=100
-        )
-        
-        if st.button("Analisis Sentimen", type="primary"):
-            if user_input:
-                # Tampilkan progress
-                with st.spinner("Menganalisis sentimen..."):
-                    # Simulasi analisis
-                    time.sleep(1)  # Simulasi waktu pemrosesan
-                    
-                    # Hasil prediksi (dummy - untuk implementasi nyata perlu menggunakan model)
-                    # Karena vectorizer juga diperlukan untuk preprocessing input baru
-                    word_count = len(user_input.split())
-                    
-                    # Prediksi sederhana berdasarkan panjang teks
-                    if word_count > 3:
-                        prediction = "POSITIF"
-                        confidence = 0.85
-                    else:
-                        prediction = "NEGATIF"
-                        confidence = 0.75
+    if st.button("Analisis Sentimen", type="primary"):
+        if user_input:
+            # Tampilkan progress
+            with st.spinner("Menganalisis sentimen..."):
+                # Simulasi analisis
+                time.sleep(1)  # Simulasi waktu pemrosesan
                 
-                # Tampilkan hasil
-                st.subheader("📊 HASIL ANALISIS")
+                # Hasil prediksi (dummy - untuk implementasi nyata perlu menggunakan model)
+                # Karena vectorizer juga diperlukan untuk preprocessing input baru
+                word_count = len(user_input.split())
                 
-                col_res1, col_res2, col_res3 = st.columns(3)
-                with col_res1:
-                    st.metric("Jumlah Kata", f"{word_count}")
-                with col_res2:
-                    color = "green" if prediction == "POSITIF" else "red"
-                    st.markdown(f"<h3 style='color: {color};'>{prediction}</h3>", unsafe_allow_html=True)
-                with col_res3:
-                    st.metric("Konfidensi", f"{confidence:.2f}")
-                
-                # Detail analisis
-                with st.expander("🔎 Detail Analisis", expanded=True):
-                    st.write("**Kalimat Input:**")
-                    st.info(f'"{user_input}"')
-                    
-                    st.write("**Informasi Model:**")
-                    st.write(f"- Model: SVM dengan kernel {model_info['kernel']}")
-                    st.write(f"- Rasio training: {model_info['ratio']}")
-                    st.write(f"- Akurasi model: {model_info['accuracy']:.4f}")
-                    
-                    st.write("**Hasil Prediksi:**")
-                    if prediction == "POSITIF":
-                        st.success(f"✅ **POSITIF** - Kalimat ini menunjukkan sentimen positif terhadap layanan Gojek.")
-                    else:
-                        st.error(f"❌ **NEGATIF** - Kalimat ini menunjukkan sentimen negatif terhadap layanan Gojek.")
-                    
-                    st.write("**Catatan Implementasi:**")
-                    st.info("""
-                    Untuk implementasi yang sebenarnya, sistem akan:
-                    1. Melakukan preprocessing teks input (cleaning, stopword removal, tokenization)
-                    2. Menggunakan TF-IDF vectorizer yang sama dengan saat training
-                    3. Mentransform teks menjadi vektor fitur
-                    4. Melakukan prediksi menggunakan model SVM terbaik
-                    """)
-    
-    elif input_mode == "Multiple Sentences":
-        # Input multiple sentences
-        st.info("Masukkan beberapa kalimat (satu per baris):")
-        multi_input = st.text_area(
-            "Masukkan kalimat (satu per baris):",
-            "Driver sangat ramah\nHarga terlalu mahal\nPelayanan memuaskan\nAplikasi sering error\nPengiriman cepat",
-            height=150
-        )
-        
-        if st.button("Analisis Semua Kalimat", type="primary"):
-            if multi_input:
-                sentences = [s.strip() for s in multi_input.split('\n') if s.strip()]
-                
-                # Progress bar
-                progress_bar = st.progress(0)
-                status_text = st.empty()
-                
-                results = []
-                for i, sentence in enumerate(sentences):
-                    status_text.text(f"Memproses kalimat {i+1}/{len(sentences)}")
-                    progress_bar.progress((i + 1) / len(sentences))
-                    
-                    # Simulasi analisis
-                    time.sleep(0.5)  # Simulasi waktu pemrosesan
-                    
-                    # Prediksi sederhana
-                    word_count = len(sentence.split())
-                    if word_count > 3:
-                        prediction = "POSITIF"
-                        confidence = 0.85
-                    else:
-                        prediction = "NEGATIF"
-                        confidence = 0.75
-                    
-                    results.append({
-                        'No': i + 1,
-                        'Kalimat': sentence[:50] + "..." if len(sentence) > 50 else sentence,
-                        'Kata': word_count,
-                        'Sentimen': prediction,
-                        'Konfidensi': f"{confidence:.2f}"
-                    })
-                
-                progress_bar.empty()
-                status_text.text(f"✅ Selesai menganalisis {len(sentences)} kalimat")
-                
-                # Tampilkan hasil dalam tabel
-                results_df = pd.DataFrame(results)
-                
-                st.subheader("📋 HASIL ANALISIS BATCH")
-                st.dataframe(results_df, use_container_width=True)
-                
-                # Statistik
-                sentiment_counts = results_df['Sentimen'].value_counts()
-                total_sentences = len(sentences)
-                positive_count = sentiment_counts.get('POSITIF', 0)
-                negative_count = sentiment_counts.get('NEGATIF', 0)
-                
-                col_stat1, col_stat2, col_stat3 = st.columns(3)
-                with col_stat1:
-                    st.metric("Total Kalimat", total_sentences)
-                with col_stat2:
-                    st.metric("Positif", f"{positive_count} ({positive_count/total_sentences*100:.1f}%)")
-                with col_stat3:
-                    st.metric("Negatif", f"{negative_count} ({negative_count/total_sentences*100:.1f}%)")
-                
-                # Visualisasi distribusi
-                fig, ax = plt.subplots(figsize=(8, 4))
-                colors = ['#2ecc71' if s == 'POSITIF' else '#e74c3c' for s in sentiment_counts.index]
-                bars = ax.bar(sentiment_counts.index, sentiment_counts.values, color=colors, alpha=0.7)
-                ax.set_xlabel('Sentimen')
-                ax.set_ylabel('Jumlah')
-                ax.set_title('Distribusi Sentimen Hasil Analisis')
-                ax.grid(True, alpha=0.3, axis='y')
-                
-                # Tambah nilai di atas bar
-                for bar, count in zip(bars, sentiment_counts.values):
-                    height = bar.get_height()
-                    ax.text(bar.get_x() + bar.get_width()/2., height + 0.1,
-                           f'{count}', ha='center', va='bottom')
-                
-                st.pyplot(fig)
-                
-                # Rekomendasi berdasarkan analisis
-                if positive_count > negative_count:
-                    st.success(f"""
-                    **📈 Kesimpulan:** Mayoritas ulasan ({positive_count/total_sentences*100:.1f}%) menunjukkan sentimen **POSITIF**.
-                    
-                    **💡 Rekomendasi:** 
-                    - Pertahankan aspek positif yang disebutkan dalam ulasan
-                    - Tingkatkan promosi pada aspek-aspek yang mendapat feedback positif
-                    """)
+                # Prediksi sederhana berdasarkan panjang teks
+                if word_count > 3:
+                    prediction = "POSITIF"
+                    confidence = 0.85
                 else:
-                    st.warning(f"""
-                    **📉 Kesimpulan:** Mayoritas ulasan ({negative_count/total_sentences*100:.1f}%) menunjukkan sentimen **NEGATIF**.
-                    
-                    **💡 Rekomendasi:** 
-                    - Identifikasi masalah yang paling sering disebutkan
-                    - Prioritaskan perbaikan pada aspek-aspek yang mendapat feedback negatif
-                    - Lakukan survei lanjutan untuk memahami akar masalah
-                    """)
+                    prediction = "NEGATIF"
+                    confidence = 0.75
+            
+            # Tampilkan hasil
+            st.subheader("HASIL ANALISIS")
+            
+            col_res1, col_res2, col_res3 = st.columns(3)
+            with col_res1:
+                st.metric("Jumlah Kata", f"{word_count}")
+            with col_res2:
+                color = "green" if prediction == "POSITIF" else "red"
+                st.markdown(f"<h3 style='color: {color};'>{prediction}</h3>", unsafe_allow_html=True)
+            with col_res3:
+                st.metric("Konfidensi", f"{confidence:.2f}")
+            
+            # Detail analisis
+            with st.expander("Detail Analisis", expanded=True):
+                st.write("Kalimat Input:")
+                st.info(f'"{user_input}"')
+                
+                st.write("Informasi Model:")
+                st.write(f"- Model: SVM dengan kernel {model_info['kernel']}")
+                st.write(f"- Rasio training: {model_info['ratio']}")
+                st.write(f"- Akurasi model: {model_info['accuracy']:.4f}")
+                
+                st.write("Hasil Prediksi:")
+                if prediction == "POSITIF":
+                    st.success(f"POSITIF - Kalimat ini menunjukkan sentimen positif terhadap layanan Gojek.")
+                else:
+                    st.error(f"NEGATIF - Kalimat ini menunjukkan sentimen negatif terhadap layanan Gojek.")
+                
+                st.write("Catatan Implementasi:")
+                st.info("Untuk implementasi yang sebenarnya, sistem akan: 1. Melakukan preprocessing teks input (cleaning, stopword removal, tokenization) 2. Menggunakan TF-IDF vectorizer yang sama dengan saat training 3. Mentransform teks menjadi vektor fitur 4. Melakukan prediksi menggunakan model SVM terbaik")
     
     # Informasi tambahan
     st.markdown("---")
-    st.subheader("ℹ️ Informasi Sistem")
+    st.subheader("Informasi Sistem")
     
     col_info1, col_info2 = st.columns(2)
     
     with col_info1:
-        st.write("**Arsitektur Sistem:**")
-        st.info("""
-        1. **Input:** Teks ulasan pengguna
-        2. **Preprocessing:** Cleaning, stopword removal, tokenization
-        3. **Feature Extraction:** TF-IDF vectorization
-        4. **Classification:** SVM dengan kernel linear/polynomial
-        5. **Output:** Sentimen (Positif/Negatif)
-        """)
+        st.write("Arsitektur Sistem:")
+        st.info("1. Input: Teks ulasan pengguna 2. Preprocessing: Cleaning, stopword removal, tokenization 3. Feature Extraction: TF-IDF vectorization 4. Classification: SVM dengan kernel linear/polynomial 5. Output: Sentimen (Positif/Negatif)")
     
     with col_info2:
-        st.write("**Keunggulan Sistem:**")
-        st.success("""
-        ✅ **Akurat:** Menggunakan model SVM dengan akurasi tinggi
-        ✅ **Cepat:** Proses klasifikasi real-time
-        ✅ **Skalabel:** Dapat menangani banyak data sekaligus
-        ✅ **Robust:** Dapat mengenali pola kalimat kompleks
-        """)
+        st.write("Keunggulan Sistem:")
+        st.success("Akurat: Menggunakan model SVM dengan akurasi tinggi Cepat: Proses klasifikasi real-time Skalabel: Dapat menangani banyak data sekaligus Robust: Dapat mengenali pola kalimat kompleks")
     
     return model_info
 
