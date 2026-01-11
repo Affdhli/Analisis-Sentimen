@@ -558,10 +558,10 @@ def train_evaluate_svm(results):
         help="Jumlah kali pengulangan training untuk setiap kombinasi parameter"
     )
     
-    # Pilihan kernel
+    # Pilihan kernel - HANYA LINEAR DAN POLYNOMIAL
     kernel_options = st.sidebar.multiselect(
         "Pilih Kernel SVM:",
-        ['linear', 'poly', 'rbf', 'sigmoid'],
+        ['linear', 'poly'],  # Hanya linear dan polynomial
         default=['linear', 'poly']
     )
     
@@ -591,13 +591,24 @@ def train_evaluate_svm(results):
             # Set random state berbeda untuk setiap iterasi
             random_state = 42 + iteration * 10
             
-            svm_model = SVC(
-                kernel=kernel_type,
-                C=C,
-                random_state=random_state,
-                probability=True,
-                max_iter=1000  # Batasan iterasi internal SVM
-            )
+            # Konfigurasi khusus untuk kernel polynomial
+            if kernel_type == 'poly':
+                svm_model = SVC(
+                    kernel=kernel_type,
+                    C=C,
+                    degree=3,  # Default degree untuk polynomial
+                    random_state=random_state,
+                    probability=True,
+                    max_iter=1000
+                )
+            else:
+                svm_model = SVC(
+                    kernel=kernel_type,
+                    C=C,
+                    random_state=random_state,
+                    probability=True,
+                    max_iter=1000
+                )
             
             # Training
             start_time = time.time()
@@ -1326,6 +1337,14 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.info("""
     **Analisis Sentimen Ulasan Gojek 2026**
+    
+    Fitur:
+    - Pelabelan sentimen dengan lexicon
+    - Preprocessing teks
+    - WordCloud visualization
+    - TF-IDF feature extraction
+    - Training SVM dengan iterasi (kernel: linear & polynomial)
+    - Klasifikasi kalimat baru
     """)
 
 if __name__ == "__main__":
