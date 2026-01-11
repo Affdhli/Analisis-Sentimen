@@ -47,7 +47,7 @@ def upload_data():
     st.info("Silakan upload file CSV yang berisi data ulasan Gojek")
     
     uploaded_file = st.file_uploader(
-        "Upload file CSV dengan kolom 'content' dan 'sentimen'", 
+        "Upload file CSV dengan kolom 'content'", 
         type=['csv']
     )
     
@@ -60,7 +60,7 @@ def upload_data():
             st.success(f"File berhasil diupload: {uploaded_file.name}")
             
             # Validasi kolom
-            required_columns = ['content', 'sentimen']
+            required_columns = ['content']
             missing_columns = [col for col in required_columns if col not in df.columns]
             
             if missing_columns:
@@ -108,7 +108,7 @@ def upload_data():
         
         # Tampilkan distribusi sentimen
         st.subheader("Distribusi Sentimen")
-        sentiment_counts = df['sentimen'].value_counts()
+        sentiment_counts = df['content'].value_counts()
         
         fig, ax = plt.subplots(1, 2, figsize=(12, 4))
         
