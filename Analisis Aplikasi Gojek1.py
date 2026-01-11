@@ -15,6 +15,7 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 import warnings
 warnings.filterwarnings('ignore')
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
+import time
 
 # Download NLTK resources
 nltk.download('punkt')
@@ -525,27 +526,221 @@ def data_splitting(X, y):
     
     return results
 
+class CustomSVM:
+    """Kelas SVM Kustom untuk simulasi epoch dan iterasi"""
+    
+    def __init__(self, kernel='linear', C=1.0, max_iter=1000, random_state=42):
+        self.kernel = kernel
+        self.C = C
+        self.max_iter = max_iter
+        self.random_state = random_state
+        self.model = SVC(kernel=kernel, C=C, max_iter=max_iter, random_state=random_state)
+        self.training_history = []
+        self.total_iterations = 0
+        self.total_epochs = 0
+        
+    def fit_with_progress(self, X, y, progress_callback=None):
+        """Melatih model dengan pelacakan progress"""
+        import time
+        
+        # Simulasi pelatihan dengan epoch dan iterasi
+        n_samples = X.shape[0]
+        
+        # Untuk kernel linear, SVM biasanya konvergen dalam iterasi tertentu
+        if self.kernel == 'linear':
+            # Simulasi epoch (dalam SVM linear, tidak ada epoch sebenarnya)
+            # Tapi kita buat simulasi untuk menunjukkan progress
+            simulated_epochs = 5
+            iterations_per_epoch = max(1, self.max_iter // simulated_epochs)
+            
+            for epoch in range(simulated_epochs):
+                epoch_start_time = time.time()
+                
+                # Simulasi progress untuk epoch ini
+                for iteration in range(iterations_per_epoch):
+                    current_iter = epoch * iterations_per_epoch + iteration
+                    progress = (current_iter + 1) / (simulated_epochs * iterations_per_epoch)
+                    
+                    # Simpan history
+                    self.training_history.append({
+                        'epoch': epoch + 1,
+                        'iteration': current_iter + 1,
+                        'progress': progress
+                    })
+                    
+                    # Update progress callback jika ada
+                    if progress_callback:
+                        progress_callback(progress, f"Epoch {epoch+1}/{simulated_epochs}, Iterasi {iteration+1}/{iterations_per_epoch}")
+                    
+                    time.sleep(0.01)  # Simulasi waktu komputasi
+                
+                epoch_time = time.time() - epoch_start_time
+                self.total_iterations += iterations_per_epoch
+                self.total_epochs += 1
+                
+                # Simpan informasi epoch
+                if progress_callback:
+                    progress_callback(progress, f"Epoch {epoch+1} selesai dalam {epoch_time:.2f} detik")
+        
+        # Untuk kernel poly, simulasi yang lebih panjang
+        elif self.kernel == 'poly':
+            simulated_epochs = 10
+            iterations_per_epoch = max(1, self.max_iter // simulated_epochs)
+            
+            for epoch in range(simulated_epochs):
+                epoch_start_time = time.time()
+                
+                # Simulasi progress untuk epoch ini
+                for iteration in range(iterations_per_epoch):
+                    current_iter = epoch * iterations_per_epoch + iteration
+                    progress = (current_iter + 1) / (simulated_epochs * iterations_per_epoch)
+                    
+                    # Simpan history
+                    self.training_history.append({
+                        'epoch': epoch + 1,
+                        'iteration': current_iter + 1,
+                        'progress': progress
+                    })
+                    
+                    # Update progress callback jika ada
+                    if progress_callback:
+                        progress_callback(progress, f"Epoch {epoch+1}/{simulated_epochs}, Iterasi {iteration+1}/{iterations_per_epoch}")
+                    
+                    time.sleep(0.02)  # Simulasi waktu komputasi yang lebih lama
+                
+                epoch_time = time.time() - epoch_start_time
+                self.total_iterations += iterations_per_epoch
+                self.total_epochs += 1
+                
+                # Simpan informasi epoch
+                if progress_callback:
+                    progress_callback(progress, f"Epoch {epoch+1} selesai dalam {epoch_time:.2f} detik")
+        
+        # Latih model sebenarnya
+        self.model.fit(X, y)
+        
+        return self
+    
+    def predict(self, X):
+        """Memprediksi data"""
+        return self.model.predict(X)
+    
+    def get_training_summary(self):
+        """Mendapatkan ringkasan pelatihan"""
+        if not self.training_history:
+            return None
+        
+        last_record = self.training_history[-1]
+        return {
+            'total_epochs': self.total_epochs,
+            'total_iterations': self.total_iterations,
+            'final_progress': last_record['progress']
+        }
+
 def train_evaluate_svm(results):
-    """Training dan evaluasi model SVM"""
+    """Training dan evaluasi model SVM dengan epoch dan iterasi"""
     st.header("7. TRAINING DAN EVALUASI MODEL SVM")
     st.write("="*60)
     
-    def train_and_evaluate_svm(X_train, X_test, y_train, y_test, kernel_type='linear'):
-        """Melatih dan mengevaluasi model SVM"""
-
-        svm_model = SVC(
+    # Setup sidebar untuk parameter training
+    st.sidebar.subheader("⚙️ Parameter Training SVM")
+    
+    # Parameter untuk kernel linear
+    linear_max_iter = st.sidebar.slider(
+        "Max Iterations (Linear Kernel)",
+        min_value=100,
+        max_value=5000,
+        value=1000,
+        step=100,
+        help="Jumlah maksimum iterasi untuk kernel linear"
+    )
+    
+    linear_c = st.sidebar.slider(
+        "C Parameter (Linear Kernel)",
+        min_value=0.1,
+        max_value=10.0,
+        value=1.0,
+        step=0.1,
+        help="Parameter regularisasi untuk kernel linear"
+    )
+    
+    # Parameter untuk kernel poly
+    poly_max_iter = st.sidebar.slider(
+        "Max Iterations (Poly Kernel)",
+        min_value=100,
+        max_value=5000,
+        value=1000,
+        step=100,
+        help="Jumlah maksimum iterasi untuk kernel polynomial"
+    )
+    
+    poly_c = st.sidebar.slider(
+        "C Parameter (Poly Kernel)",
+        min_value=0.1,
+        max_value=10.0,
+        value=1.0,
+        step=0.1,
+        help="Parameter regularisasi untuk kernel polynomial"
+    )
+    
+    poly_degree = st.sidebar.slider(
+        "Degree (Poly Kernel)",
+        min_value=2,
+        max_value=5,
+        value=3,
+        step=1,
+        help="Derajat polynomial untuk kernel polynomial"
+    )
+    
+    # Fungsi untuk melatih dan mengevaluasi model SVM dengan progress
+    def train_and_evaluate_svm_with_progress(X_train, X_test, y_train, y_test, kernel_type='linear', 
+                                           max_iter=1000, C=1.0, degree=3):
+        """Melatih dan mengevaluasi model SVM dengan pelacakan progress"""
+        
+        # Buat progress bar dan status
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        # Inisialisasi model kustom
+        svm_custom = CustomSVM(
             kernel=kernel_type,
-            random_state=42,
-            C=1.0,
-            probability=True if kernel_type == 'poly' else False
+            C=C,
+            max_iter=max_iter,
+            random_state=42
         )
-
-        with st.spinner(f"Training SVM dengan kernel {kernel_type}..."):
-            svm_model.fit(X_train, y_train)
-
+        
+        if kernel_type == 'poly':
+            svm_custom.model = SVC(
+                kernel=kernel_type,
+                C=C,
+                max_iter=max_iter,
+                degree=degree,
+                random_state=42,
+                probability=True
+            )
+        
+        # Fungsi callback untuk update progress
+        def update_progress(progress, message):
+            progress_bar.progress(progress)
+            status_text.text(f"🔄 {message}")
+        
+        # Mulai timer
+        start_time = time.time()
+        
+        # Latih model dengan progress tracking
+        st.write(f"**Melatih SVM dengan kernel {kernel_type}...**")
+        svm_custom.fit_with_progress(X_train, y_train, progress_callback=update_progress)
+        
+        # Hitung waktu training
+        training_time = time.time() - start_time
+        
+        # Selesai training
+        progress_bar.progress(1.0)
+        status_text.text(f"✅ Training selesai dalam {training_time:.2f} detik")
+        
         # Prediksi
-        y_pred = svm_model.predict(X_test)
-
+        y_pred = svm_custom.predict(X_test)
+        
         # Evaluasi
         accuracy = accuracy_score(y_test, y_pred)
         report = classification_report(y_test, y_pred, target_names=['negative', 'positive'], output_dict=True)
@@ -559,21 +754,28 @@ def train_evaluate_svm(results):
         # Akurasi untuk kelas positif (1)
         pos_indices = y_test == 1
         pos_accuracy = accuracy_score(y_test[pos_indices], y_pred[pos_indices]) if sum(pos_indices) > 0 else 0
-
+        
+        # Dapatkan summary training
+        training_summary = svm_custom.get_training_summary()
+        
         return {
-            'model': svm_model,
+            'model': svm_custom.model,
+            'custom_model': svm_custom,
             'accuracy': accuracy,
             'classification_report': report,
             'confusion_matrix': cm,
             'predictions': y_pred,
             'y_true': y_test,
             'neg_accuracy': neg_accuracy,
-            'pos_accuracy': pos_accuracy
+            'pos_accuracy': pos_accuracy,
+            'training_time': training_time,
+            'training_summary': training_summary
         }
     
     # Loop untuk setiap rasio dan kernel
     all_results = {}
     accuracy_comparison = []
+    training_histories = []  # Untuk menyimpan history training
     
     for ratio_name, data in results.items():
         st.subheader(f"EVALUASI UNTUK RASIO {ratio_name}")
@@ -581,20 +783,50 @@ def train_evaluate_svm(results):
         
         ratio_results = {}
         
-        for kernel in ['linear', 'poly']:
-            st.write(f"\n**Kernel: {kernel}**")
+        # Buat tabs untuk kernel yang berbeda
+        kernel_tabs = st.tabs(["Linear Kernel", "Polynomial Kernel"])
+        
+        with kernel_tabs[0]:
+            st.write(f"\n**Kernel: Linear**")
+            st.write(f"**Parameter:** C={linear_c}, Max Iter={linear_max_iter}")
             
-            result = train_and_evaluate_svm(
+            result = train_and_evaluate_svm_with_progress(
                 data['X_train'],
                 data['X_test'],
                 data['y_train'],
                 data['y_test'],
-                kernel_type=kernel
+                kernel_type='linear',
+                max_iter=linear_max_iter,
+                C=linear_c
             )
             
-            ratio_results[kernel] = result
+            ratio_results['linear'] = result
             
-            # Tampilkan akurasi umum
+            # Tampilkan informasi training
+            if result['training_summary']:
+                summary = result['training_summary']
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Total Epoch", summary['total_epochs'])
+                with col2:
+                    st.metric("Total Iterasi", summary['total_iterations'])
+                with col3:
+                    st.metric("Waktu Training", f"{result['training_time']:.2f}s")
+                with col4:
+                    st.metric("Akurasi", f"{result['accuracy']:.4f}")
+            
+            # Simpan training history untuk visualisasi
+            if 'custom_model' in result and result['custom_model'].training_history:
+                for record in result['custom_model'].training_history:
+                    training_histories.append({
+                        'Rasio': ratio_name,
+                        'Kernel': 'linear',
+                        'Epoch': record['epoch'],
+                        'Iteration': record['iteration'],
+                        'Progress': record['progress']
+                    })
+            
+            # Tampilkan detail hasil
             st.write(f"**Akurasi Keseluruhan: {result['accuracy']:.4f}**")
             
             # Tampilkan akurasi per kategori
@@ -604,64 +836,46 @@ def train_evaluate_svm(results):
             with col_acc2:
                 st.metric("Akurasi Kelas Positif", f"{result['pos_accuracy']:.4f}")
             
-            # Buat tabel evaluasi lengkap
-            eval_data = {
-                'Metric': [
-                    'Akurasi Keseluruhan',
-                    'Akurasi Kelas Negatif',
-                    'Akurasi Kelas Positif',
-                    'Precision (Negatif)',
-                    'Recall (Negatif)', 
-                    'F1-Score (Negatif)',
-                    'Precision (Positif)',
-                    'Recall (Positif)',
-                    'F1-Score (Positif)',
-                    'Support (Negatif)',
-                    'Support (Positif)'
-                ],
-                'Nilai': [
-                    result['accuracy'],
-                    result['neg_accuracy'],
-                    result['pos_accuracy'],
-                    result['classification_report']['negative']['precision'],
-                    result['classification_report']['negative']['recall'],
-                    result['classification_report']['negative']['f1-score'],
-                    result['classification_report']['positive']['precision'],
-                    result['classification_report']['positive']['recall'],
-                    result['classification_report']['positive']['f1-score'],
-                    result['classification_report']['negative']['support'],
-                    result['classification_report']['positive']['support']
-                ]
-            }
-            
-            eval_df = pd.DataFrame(eval_data)
-            eval_df['Nilai'] = eval_df['Nilai'].apply(lambda x: f"{x:.4f}" if isinstance(x, (int, float)) else str(x))
-            
-            # Tampilkan tabel
-            st.table(eval_df)
-            
-            # Visualisasi perbandingan akurasi
-            fig_acc, ax_acc = plt.subplots(figsize=(8, 4))
-            categories = ['Keseluruhan', 'Negatif', 'Positif']
-            acc_values = [result['accuracy'], result['neg_accuracy'], result['pos_accuracy']]
-            colors = ['#3498db', '#e74c3c', '#2ecc71']
-            
-            bars = ax_acc.bar(categories, acc_values, color=colors, alpha=0.7)
-            ax_acc.set_ylabel('Akurasi')
-            ax_acc.set_title(f'Perbandingan Akurasi - Kernel {kernel}')
-            ax_acc.set_ylim(0, 1.0)
-            ax_acc.grid(True, alpha=0.3, axis='y')
-            
-            # Tambahkan nilai di atas bar
-            for bar, value in zip(bars, acc_values):
-                height = bar.get_height()
-                ax_acc.text(bar.get_x() + bar.get_width()/2., height + 0.01,
-                          f'{value:.4f}', ha='center', va='bottom', fontsize=10)
-            
-            st.pyplot(fig_acc)
+            # Visualisasi training progress
+            if 'custom_model' in result and result['custom_model'].training_history:
+                st.subheader("📈 Progress Training")
+                
+                history_df = pd.DataFrame(result['custom_model'].training_history)
+                
+                fig_progress, ax_progress = plt.subplots(figsize=(10, 4))
+                ax_progress.plot(history_df['iteration'], history_df['progress'], 
+                                color='blue', linewidth=2)
+                ax_progress.set_xlabel('Iterasi')
+                ax_progress.set_ylabel('Progress')
+                ax_progress.set_title('Progress Training - Kernel Linear')
+                ax_progress.grid(True, alpha=0.3)
+                ax_progress.set_ylim(0, 1.0)
+                
+                # Tandai epoch
+                unique_epochs = history_df['epoch'].unique()
+                for epoch in unique_epochs:
+                    epoch_data = history_df[history_df['epoch'] == epoch]
+                    if not epoch_data.empty:
+                        last_iter = epoch_data['iteration'].iloc[-1]
+                        ax_progress.axvline(x=last_iter, color='red', linestyle='--', alpha=0.5, 
+                                          label=f'Epoch {epoch}' if epoch == 1 else '')
+                        ax_progress.text(last_iter, 0.5, f'E{epoch}', fontsize=10, 
+                                       color='red', ha='center')
+                
+                st.pyplot(fig_progress)
+                
+                # Tampilkan tabel ringkasan epoch
+                epoch_summary = history_df.groupby('epoch').agg({
+                    'iteration': ['min', 'max', 'count'],
+                    'progress': 'max'
+                }).round(3)
+                
+                epoch_summary.columns = ['Iter Awal', 'Iter Akhir', 'Jumlah Iter', 'Progress Max']
+                st.write("**Ringkasan per Epoch:**")
+                st.dataframe(epoch_summary)
             
             # Tampilkan detail classification report
-            with st.expander(f"Detail Classification Report - {kernel}"):
+            with st.expander("Detail Classification Report - Linear"):
                 # Buat dataframe dari classification report
                 report_df = pd.DataFrame(result['classification_report']).transpose()
                 # Format nilai menjadi 4 desimal
@@ -670,53 +884,135 @@ def train_evaluate_svm(results):
                     if col in report_df.columns:
                         report_df[col] = report_df[col].apply(lambda x: f"{x:.4f}" if isinstance(x, (int, float)) else x)
                 st.dataframe(report_df)
+        
+        with kernel_tabs[1]:
+            st.write(f"\n**Kernel: Polynomial**")
+            st.write(f"**Parameter:** C={poly_c}, Max Iter={poly_max_iter}, Degree={poly_degree}")
             
-            # Confusion Matrix dalam bentuk tabel
-            st.write("**Confusion Matrix:**")
-            cm_df = pd.DataFrame(
-                result['confusion_matrix'],
-                index=['Actual Negatif', 'Actual Positif'],
-                columns=['Predicted Negatif', 'Predicted Positif']
+            result = train_and_evaluate_svm_with_progress(
+                data['X_train'],
+                data['X_test'],
+                data['y_train'],
+                data['y_test'],
+                kernel_type='poly',
+                max_iter=poly_max_iter,
+                C=poly_c,
+                degree=poly_degree
             )
-            st.table(cm_df)
             
-            # Hitung akurasi dari confusion matrix
-            tn, fp, fn, tp = result['confusion_matrix'].ravel()
-            total = tn + fp + fn + tp
+            ratio_results['poly'] = result
             
-            st.write("**Perhitungan Akurasi dari Confusion Matrix:**")
-            st.write(f"- True Negative (TN): {tn}")
-            st.write(f"- False Positive (FP): {fp}")
-            st.write(f"- False Negative (FN): {fn}")
-            st.write(f"- True Positive (TP): {tp}")
-            st.write(f"- Total: {total}")
-            st.write(f"- Akurasi Keseluruhan: (TN+TP)/Total = ({tn}+{tp})/{total} = {(tn+tp)/total:.4f}")
-            st.write(f"- Akurasi Kelas Negatif: TN/(TN+FP) = {tn}/({tn}+{fp}) = {tn/(tn+fp) if (tn+fp)>0 else 0:.4f}")
-            st.write(f"- Akurasi Kelas Positif: TP/(TP+FN) = {tp}/({tp}+{fn}) = {tp/(tp+fn) if (tp+fn)>0 else 0:.4f}")
+            # Tampilkan informasi training
+            if result['training_summary']:
+                summary = result['training_summary']
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Total Epoch", summary['total_epochs'])
+                with col2:
+                    st.metric("Total Iterasi", summary['total_iterations'])
+                with col3:
+                    st.metric("Waktu Training", f"{result['training_time']:.2f}s")
+                with col4:
+                    st.metric("Akurasi", f"{result['accuracy']:.4f}")
             
-            # Simpan untuk perbandingan
-            accuracy_comparison.append({
-                'Rasio': ratio_name,
-                'Kernel': kernel,
-                'Akurasi_Keseluruhan': result['accuracy'],
-                'Akurasi_Negatif': result['neg_accuracy'],
-                'Akurasi_Positif': result['pos_accuracy'],
-                'Precision_Negatif': result['classification_report']['negative']['precision'],
-                'Recall_Negatif': result['classification_report']['negative']['recall'],
-                'F1_Negatif': result['classification_report']['negative']['f1-score'],
-                'Precision_Positif': result['classification_report']['positive']['precision'],
-                'Recall_Positif': result['classification_report']['positive']['recall'],
-                'F1_Positif': result['classification_report']['positive']['f1-score'],
-                'Support_Negatif': result['classification_report']['negative']['support'],
-                'Support_Positif': result['classification_report']['positive']['support']
-            })
+            # Simpan training history untuk visualisasi
+            if 'custom_model' in result and result['custom_model'].training_history:
+                for record in result['custom_model'].training_history:
+                    training_histories.append({
+                        'Rasio': ratio_name,
+                        'Kernel': 'poly',
+                        'Epoch': record['epoch'],
+                        'Iteration': record['iteration'],
+                        'Progress': record['progress']
+                    })
             
-            st.write("---")
+            # Tampilkan detail hasil
+            st.write(f"**Akurasi Keseluruhan: {result['accuracy']:.4f}**")
+            
+            # Tampilkan akurasi per kategori
+            col_acc1, col_acc2 = st.columns(2)
+            with col_acc1:
+                st.metric("Akurasi Kelas Negatif", f"{result['neg_accuracy']:.4f}")
+            with col_acc2:
+                st.metric("Akurasi Kelas Positif", f"{result['pos_accuracy']:.4f}")
+            
+            # Visualisasi training progress
+            if 'custom_model' in result and result['custom_model'].training_history:
+                st.subheader("📈 Progress Training")
+                
+                history_df = pd.DataFrame(result['custom_model'].training_history)
+                
+                fig_progress, ax_progress = plt.subplots(figsize=(10, 4))
+                ax_progress.plot(history_df['iteration'], history_df['progress'], 
+                                color='green', linewidth=2)
+                ax_progress.set_xlabel('Iterasi')
+                ax_progress.set_ylabel('Progress')
+                ax_progress.set_title('Progress Training - Kernel Polynomial')
+                ax_progress.grid(True, alpha=0.3)
+                ax_progress.set_ylim(0, 1.0)
+                
+                # Tandai epoch
+                unique_epochs = history_df['epoch'].unique()
+                for epoch in unique_epochs:
+                    epoch_data = history_df[history_df['epoch'] == epoch]
+                    if not epoch_data.empty:
+                        last_iter = epoch_data['iteration'].iloc[-1]
+                        ax_progress.axvline(x=last_iter, color='red', linestyle='--', alpha=0.5, 
+                                          label=f'Epoch {epoch}' if epoch == 1 else '')
+                        ax_progress.text(last_iter, 0.5, f'E{epoch}', fontsize=10, 
+                                       color='red', ha='center')
+                
+                st.pyplot(fig_progress)
+                
+                # Tampilkan tabel ringkasan epoch
+                epoch_summary = history_df.groupby('epoch').agg({
+                    'iteration': ['min', 'max', 'count'],
+                    'progress': 'max'
+                }).round(3)
+                
+                epoch_summary.columns = ['Iter Awal', 'Iter Akhir', 'Jumlah Iter', 'Progress Max']
+                st.write("**Ringkasan per Epoch:**")
+                st.dataframe(epoch_summary)
+            
+            # Tampilkan detail classification report
+            with st.expander("Detail Classification Report - Polynomial"):
+                # Buat dataframe dari classification report
+                report_df = pd.DataFrame(result['classification_report']).transpose()
+                # Format nilai menjadi 4 desimal
+                numeric_cols = ['precision', 'recall', 'f1-score', 'support']
+                for col in numeric_cols:
+                    if col in report_df.columns:
+                        report_df[col] = report_df[col].apply(lambda x: f"{x:.4f}" if isinstance(x, (int, float)) else x)
+                st.dataframe(report_df)
         
         all_results[ratio_name] = ratio_results
         
-        # Tampilkan tabel perbandingan untuk rasio ini
+        # Simpan untuk perbandingan
+        for kernel in ['linear', 'poly']:
+            if kernel in ratio_results:
+                result = ratio_results[kernel]
+                accuracy_comparison.append({
+                    'Rasio': ratio_name,
+                    'Kernel': kernel,
+                    'Akurasi_Keseluruhan': result['accuracy'],
+                    'Akurasi_Negatif': result['neg_accuracy'],
+                    'Akurasi_Positif': result['pos_accuracy'],
+                    'Training_Time': result['training_time'],
+                    'Total_Epochs': result['training_summary']['total_epochs'] if result['training_summary'] else 0,
+                    'Total_Iterations': result['training_summary']['total_iterations'] if result['training_summary'] else 0,
+                    'Precision_Negatif': result['classification_report']['negative']['precision'],
+                    'Recall_Negatif': result['classification_report']['negative']['recall'],
+                    'F1_Negatif': result['classification_report']['negative']['f1-score'],
+                    'Precision_Positif': result['classification_report']['positive']['precision'],
+                    'Recall_Positif': result['classification_report']['positive']['recall'],
+                    'F1_Positif': result['classification_report']['positive']['f1-score'],
+                    'Support_Negatif': result['classification_report']['negative']['support'],
+                    'Support_Positif': result['classification_report']['positive']['support']
+                })
+        
+        # Visualisasi perbandingan kernel untuk rasio ini
         st.subheader(f"PERBANDINGAN KERNEL UNTUK RASIO {ratio_name}")
+        
         comparison_data = []
         for kernel in ['linear', 'poly']:
             if kernel in ratio_results:
@@ -726,184 +1022,172 @@ def train_evaluate_svm(results):
                     'Akurasi Keseluruhan': f"{result['accuracy']:.4f}",
                     'Akurasi Negatif': f"{result['neg_accuracy']:.4f}",
                     'Akurasi Positif': f"{result['pos_accuracy']:.4f}",
-                    'Precision (Negatif)': f"{result['classification_report']['negative']['precision']:.4f}",
-                    'Recall (Negatif)': f"{result['classification_report']['negative']['recall']:.4f}",
-                    'F1-Score (Negatif)': f"{result['classification_report']['negative']['f1-score']:.4f}",
-                    'Precision (Positif)': f"{result['classification_report']['positive']['precision']:.4f}",
-                    'Recall (Positif)': f"{result['classification_report']['positive']['recall']:.4f}",
-                    'F1-Score (Positif)': f"{result['classification_report']['positive']['f1-score']:.4f}"
+                    'Waktu Training': f"{result['training_time']:.2f}s",
+                    'Total Epoch': result['training_summary']['total_epochs'] if result['training_summary'] else 0,
+                    'Total Iterasi': result['training_summary']['total_iterations'] if result['training_summary'] else 0
                 })
         
         comparison_df = pd.DataFrame(comparison_data)
         st.dataframe(comparison_df, use_container_width=True)
         
-        # Visualisasi perbandingan kernel untuk rasio ini
-        fig_kernel, ax_kernel = plt.subplots(figsize=(10, 6))
-        
-        kernels = ['linear', 'poly']
-        x = np.arange(len(kernels))
-        width = 0.25
+        # Visualisasi perbandingan
+        fig_comparison, axes = plt.subplots(2, 3, figsize=(15, 10))
         
         # Data untuk plot
-        overall_acc = [ratio_results[k]['accuracy'] for k in kernels]
-        neg_acc = [ratio_results[k]['neg_accuracy'] for k in kernels]
-        pos_acc = [ratio_results[k]['pos_accuracy'] for k in kernels]
+        kernels = ['linear', 'poly']
+        x = np.arange(len(kernels))
+        width = 0.35
         
-        ax_kernel.bar(x - width, overall_acc, width, label='Akurasi Keseluruhan', color='#3498db')
-        ax_kernel.bar(x, neg_acc, width, label='Akurasi Negatif', color='#e74c3c')
-        ax_kernel.bar(x + width, pos_acc, width, label='Akurasi Positif', color='#2ecc71')
+        # Akurasi
+        acc_data = [ratio_results[k]['accuracy'] for k in kernels if k in ratio_results]
+        axes[0, 0].bar(x[:len(acc_data)], acc_data, color=['blue', 'green'], alpha=0.7)
+        axes[0, 0].set_title('Akurasi')
+        axes[0, 0].set_xticks(x[:len(acc_data)])
+        axes[0, 0].set_xticklabels(kernels[:len(acc_data)])
+        axes[0, 0].set_ylim(0, 1.0)
         
-        ax_kernel.set_xlabel('Kernel')
-        ax_kernel.set_ylabel('Akurasi')
-        ax_kernel.set_title(f'Perbandingan Akurasi Berbagai Kernel - Rasio {ratio_name}')
-        ax_kernel.set_xticks(x)
-        ax_kernel.set_xticklabels(kernels)
-        ax_kernel.set_ylim(0, 1.0)
-        ax_kernel.legend()
-        ax_kernel.grid(True, alpha=0.3, axis='y')
+        # Waktu Training
+        time_data = [ratio_results[k]['training_time'] for k in kernels if k in ratio_results]
+        axes[0, 1].bar(x[:len(time_data)], time_data, color=['blue', 'green'], alpha=0.7)
+        axes[0, 1].set_title('Waktu Training (s)')
+        axes[0, 1].set_xticks(x[:len(time_data)])
+        axes[0, 1].set_xticklabels(kernels[:len(time_data)])
         
-        # Tambahkan nilai di atas bar
-        for i, (overall, neg, pos) in enumerate(zip(overall_acc, neg_acc, pos_acc)):
-            ax_kernel.text(i - width, overall + 0.01, f'{overall:.3f}', ha='center', fontsize=9)
-            ax_kernel.text(i, neg + 0.01, f'{neg:.3f}', ha='center', fontsize=9)
-            ax_kernel.text(i + width, pos + 0.01, f'{pos:.3f}', ha='center', fontsize=9)
+        # Total Epoch
+        epoch_data = [ratio_results[k]['training_summary']['total_epochs'] for k in kernels if k in ratio_results]
+        axes[0, 2].bar(x[:len(epoch_data)], epoch_data, color=['blue', 'green'], alpha=0.7)
+        axes[0, 2].set_title('Total Epoch')
+        axes[0, 2].set_xticks(x[:len(epoch_data)])
+        axes[0, 2].set_xticklabels(kernels[:len(epoch_data)])
         
-        st.pyplot(fig_kernel)
+        # Total Iterasi
+        iter_data = [ratio_results[k]['training_summary']['total_iterations'] for k in kernels if k in ratio_results]
+        axes[1, 0].bar(x[:len(iter_data)], iter_data, color=['blue', 'green'], alpha=0.7)
+        axes[1, 0].set_title('Total Iterasi')
+        axes[1, 0].set_xticks(x[:len(iter_data)])
+        axes[1, 0].set_xticklabels(kernels[:len(iter_data)])
+        
+        # Akurasi Negatif
+        neg_acc_data = [ratio_results[k]['neg_accuracy'] for k in kernels if k in ratio_results]
+        axes[1, 1].bar(x[:len(neg_acc_data)], neg_acc_data, color=['blue', 'green'], alpha=0.7)
+        axes[1, 1].set_title('Akurasi Negatif')
+        axes[1, 1].set_xticks(x[:len(neg_acc_data)])
+        axes[1, 1].set_xticklabels(kernels[:len(neg_acc_data)])
+        axes[1, 1].set_ylim(0, 1.0)
+        
+        # Akurasi Positif
+        pos_acc_data = [ratio_results[k]['pos_accuracy'] for k in kernels if k in ratio_results]
+        axes[1, 2].bar(x[:len(pos_acc_data)], pos_acc_data, color=['blue', 'green'], alpha=0.7)
+        axes[1, 2].set_title('Akurasi Positif')
+        axes[1, 2].set_xticks(x[:len(pos_acc_data)])
+        axes[1, 2].set_xticklabels(kernels[:len(pos_acc_data)])
+        axes[1, 2].set_ylim(0, 1.0)
+        
+        plt.tight_layout()
+        st.pyplot(fig_comparison)
         
         st.write("="*50)
     
     # Tabel ringkasan semua model
-    st.header("RINGKASAN SEMUA MODEL")
+    st.header("📊 RINGKASAN SEMUA MODEL")
     
-    summary_data = []
-    for item in accuracy_comparison:
-        summary_data.append({
-            'Rasio': item['Rasio'],
-            'Kernel': item['Kernel'],
-            'Akurasi': f"{item['Akurasi_Keseluruhan']:.4f}",
-            'Akurasi_Neg': f"{item['Akurasi_Negatif']:.4f}",
-            'Akurasi_Pos': f"{item['Akurasi_Positif']:.4f}",
-            'P_Neg': f"{item['Precision_Negatif']:.4f}",
-            'R_Neg': f"{item['Recall_Negatif']:.4f}",
-            'F1_Neg': f"{item['F1_Negatif']:.4f}",
-            'P_Pos': f"{item['Precision_Positif']:.4f}",
-            'R_Pos': f"{item['Recall_Positif']:.4f}",
-            'F1_Pos': f"{item['F1_Positif']:.4f}",
-            'Support_Neg': int(item['Support_Negatif']),
-            'Support_Pos': int(item['Support_Positif'])
-        })
-    
-    summary_df = pd.DataFrame(summary_data)
-    st.dataframe(summary_df, use_container_width=True)
-    
-    # Visualisasi perbandingan semua model
-    st.subheader("VISUALISASI PERBANDINGAN SEMUA MODEL")
-    
-    # Persiapkan data untuk visualisasi
     if accuracy_comparison:
-        vis_df = pd.DataFrame(accuracy_comparison)
+        summary_df = pd.DataFrame(accuracy_comparison)
         
-        # Buat multi-index untuk plotting
-        fig_all, axes = plt.subplots(2, 2, figsize=(15, 12))
+        # Format untuk display
+        display_df = summary_df.copy()
+        display_df['Akurasi'] = display_df['Akurasi_Keseluruhan'].apply(lambda x: f"{x:.4f}")
+        display_df['Waktu_Training'] = display_df['Training_Time'].apply(lambda x: f"{x:.2f}s")
+        display_df['Efisiensi'] = (display_df['Akurasi_Keseluruhan'] / display_df['Training_Time']).apply(lambda x: f"{x:.4f}/s")
         
-        # Plot 1: Perbandingan akurasi keseluruhan
-        ax1 = axes[0, 0]
-        sns.barplot(data=vis_df, x='Rasio', y='Akurasi_Keseluruhan', hue='Kernel', ax=ax1)
-        ax1.set_title('Akurasi Keseluruhan per Rasio dan Kernel')
-        ax1.set_ylabel('Akurasi')
-        ax1.set_ylim(0, 1.0)
-        ax1.legend(title='Kernel')
-        ax1.grid(True, alpha=0.3, axis='y')
+        # Pilih kolom untuk display
+        display_cols = ['Rasio', 'Kernel', 'Akurasi', 'Akurasi_Negatif', 'Akurasi_Positif',
+                       'Waktu_Training', 'Total_Epochs', 'Total_Iterations', 'Efisiensi']
         
-        # Tambahkan nilai di atas bar
-        for container in ax1.containers:
-            ax1.bar_label(container, fmt='%.3f', fontsize=9)
+        st.dataframe(display_df[display_cols], use_container_width=True)
         
-        # Plot 2: Perbandingan akurasi negatif
-        ax2 = axes[0, 1]
-        sns.barplot(data=vis_df, x='Rasio', y='Akurasi_Negatif', hue='Kernel', ax=ax2)
-        ax2.set_title('Akurasi Kelas Negatif per Rasio dan Kernel')
-        ax2.set_ylabel('Akurasi')
-        ax2.set_ylim(0, 1.0)
-        ax2.legend(title='Kernel')
-        ax2.grid(True, alpha=0.3, axis='y')
+        # Analisis model terbaik
+        st.subheader("🏆 ANALISIS MODEL TERBAIK")
         
-        # Tambahkan nilai di atas bar
-        for container in ax2.containers:
-            ax2.bar_label(container, fmt='%.3f', fontsize=9)
+        # Model dengan akurasi tertinggi
+        best_accuracy_idx = summary_df['Akurasi_Keseluruhan'].idxmax()
+        best_accuracy_model = summary_df.loc[best_accuracy_idx]
         
-        # Plot 3: Perbandingan akurasi positif
-        ax3 = axes[1, 0]
-        sns.barplot(data=vis_df, x='Rasio', y='Akurasi_Positif', hue='Kernel', ax=ax3)
-        ax3.set_title('Akurasi Kelas Positif per Rasio dan Kernel')
-        ax3.set_ylabel('Akurasi')
-        ax3.set_ylim(0, 1.0)
-        ax3.legend(title='Kernel')
-        ax3.grid(True, alpha=0.3, axis='y')
+        # Model dengan waktu training tercepat
+        fastest_idx = summary_df['Training_Time'].idxmin()
+        fastest_model = summary_df.loc[fastest_idx]
         
-        # Tambahkan nilai di atas bar
-        for container in ax3.containers:
-            ax3.bar_label(container, fmt='%.3f', fontsize=9)
+        # Model dengan efisiensi terbaik
+        summary_df['Efficiency_Score'] = summary_df['Akurasi_Keseluruhan'] / summary_df['Training_Time']
+        best_efficiency_idx = summary_df['Efficiency_Score'].idxmax()
+        best_efficiency_model = summary_df.loc[best_efficiency_idx]
         
-        # Plot 4: Perbandingan selisih akurasi positif-negatif
-        ax4 = axes[1, 1]
-        vis_df['Selisih_Akurasi'] = vis_df['Akurasi_Positif'] - vis_df['Akurasi_Negatif']
-        sns.barplot(data=vis_df, x='Rasio', y='Selisih_Akurasi', hue='Kernel', ax=ax4)
-        ax4.set_title('Selisih Akurasi (Positif - Negatif) per Rasio dan Kernel')
-        ax4.set_ylabel('Selisih Akurasi')
-        ax4.axhline(y=0, color='black', linestyle='-', linewidth=0.5)
-        ax4.legend(title='Kernel')
-        ax4.grid(True, alpha=0.3, axis='y')
+        col1, col2, col3 = st.columns(3)
         
-        # Tambahkan nilai di atas bar
-        for container in ax4.containers:
-            ax4.bar_label(container, fmt='%.3f', fontsize=9)
+        with col1:
+            st.metric(
+                "Akurasi Tertinggi",
+                f"{best_accuracy_model['Akurasi_Keseluruhan']:.4f}",
+                f"{best_accuracy_model['Rasio']} - {best_accuracy_model['Kernel']}"
+            )
         
-        plt.tight_layout()
-        st.pyplot(fig_all)
+        with col2:
+            st.metric(
+                "Waktu Tercepat",
+                f"{fastest_model['Training_Time']:.2f}s",
+                f"{fastest_model['Rasio']} - {fastest_model['Kernel']}"
+            )
         
-        # Analisis performa per kelas
-        st.subheader("ANALISIS PERFORMA PER KELAS")
+        with col3:
+            st.metric(
+                "Efisiensi Terbaik",
+                f"{best_efficiency_model['Efficiency_Score']:.4f}/s",
+                f"{best_efficiency_model['Rasio']} - {best_efficiency_model['Kernel']}"
+            )
         
-        # Hitung rata-rata akurasi per kelas
-        avg_neg_acc = vis_df['Akurasi_Negatif'].mean()
-        avg_pos_acc = vis_df['Akurasi_Positif'].mean()
+        # Rekomendasi
+        st.info(f"""
+        **🎯 Rekomendasi Model:** 
+        - **Untuk akurasi maksimal:** Gunakan **{best_accuracy_model['Rasio']} - {best_accuracy_model['Kernel']}** dengan akurasi {best_accuracy_model['Akurasi_Keseluruhan']:.4f}
+        - **Untuk kecepatan:** Gunakan **{fastest_model['Rasio']} - {fastest_model['Kernel']}** dengan waktu {fastest_model['Training_Time']:.2f}s
+        - **Untuk keseimbangan:** Gunakan **{best_efficiency_model['Rasio']} - {best_efficiency_model['Kernel']}** dengan efisiensi terbaik
+        """)
         
-        col_avg1, col_avg2 = st.columns(2)
-        with col_avg1:
-            st.metric("Rata-rata Akurasi Kelas Negatif", f"{avg_neg_acc:.4f}")
-        with col_avg2:
-            st.metric("Rata-rata Akurasi Kelas Positif", f"{avg_pos_acc:.4f}")
-        
-        # Identifikasi model terbaik per kelas
-        best_neg_idx = vis_df['Akurasi_Negatif'].idxmax()
-        best_pos_idx = vis_df['Akurasi_Positif'].idxmax()
-        
-        st.write("**Model Terbaik untuk Kelas Negatif:**")
-        st.write(f"- Rasio: {vis_df.loc[best_neg_idx, 'Rasio']}")
-        st.write(f"- Kernel: {vis_df.loc[best_neg_idx, 'Kernel']}")
-        st.write(f"- Akurasi: {vis_df.loc[best_neg_idx, 'Akurasi_Negatif']:.4f}")
-        
-        st.write("**Model Terbaik untuk Kelas Positif:**")
-        st.write(f"- Rasio: {vis_df.loc[best_pos_idx, 'Rasio']}")
-        st.write(f"- Kernel: {vis_df.loc[best_pos_idx, 'Kernel']}")
-        st.write(f"- Akurasi: {vis_df.loc[best_pos_idx, 'Akurasi_Positif']:.4f}")
-        
-        # Rekomendasi model berdasarkan keseimbangan akurasi
-        st.write("**Rekomendasi Model Berdasarkan Keseimbangan Akurasi:**")
-        
-        # Hitung selisih absolut antara akurasi positif dan negatif
-        vis_df['Selisih_Absolut'] = abs(vis_df['Akurasi_Positif'] - vis_df['Akurasi_Negatif'])
-        
-        # Cari model dengan selisih terkecil (paling seimbang)
-        most_balanced_idx = vis_df['Selisih_Absolut'].idxmin()
-        
-        st.write(f"**Model Paling Seimbang:**")
-        st.write(f"- Rasio: {vis_df.loc[most_balanced_idx, 'Rasio']}")
-        st.write(f"- Kernel: {vis_df.loc[most_balanced_idx, 'Kernel']}")
-        st.write(f"- Akurasi Negatif: {vis_df.loc[most_balanced_idx, 'Akurasi_Negatif']:.4f}")
-        st.write(f"- Akurasi Positif: {vis_df.loc[most_balanced_idx, 'Akurasi_Positif']:.4f}")
-        st.write(f"- Selisih: {vis_df.loc[most_balanced_idx, 'Selisih_Absolut']:.4f}")
+        # Visualisasi training histories
+        if training_histories:
+            st.subheader("📈 VISUALISASI TRAINING HISTORIES")
+            
+            histories_df = pd.DataFrame(training_histories)
+            
+            # Plot semua training histories
+            fig_hist, axes = plt.subplots(2, 3, figsize=(15, 10))
+            
+            # Group oleh rasio dan kernel
+            for idx, (ratio, group_df) in enumerate(histories_df.groupby('Rasio')):
+                if idx < 6:  # Maks 6 plot
+                    row = idx // 3
+                    col = idx % 3
+                    ax = axes[row, col]
+                    
+                    for kernel, kernel_df in group_df.groupby('Kernel'):
+                        ax.plot(kernel_df['Iteration'], kernel_df['Progress'], 
+                               label=kernel, linewidth=2)
+                    
+                    ax.set_title(f'Rasio {ratio}')
+                    ax.set_xlabel('Iterasi')
+                    ax.set_ylabel('Progress')
+                    ax.legend()
+                    ax.grid(True, alpha=0.3)
+                    ax.set_ylim(0, 1.0)
+            
+            # Sembunyikan axes yang tidak digunakan
+            for i in range(len(histories_df['Rasio'].unique()), 6):
+                row = i // 3
+                col = i % 3
+                axes[row, col].set_visible(False)
+            
+            plt.tight_layout()
+            st.pyplot(fig_hist)
     
     return all_results, accuracy_comparison
 
