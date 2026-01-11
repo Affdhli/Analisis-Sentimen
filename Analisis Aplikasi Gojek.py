@@ -60,11 +60,8 @@ def upload_data():
             st.success(f"File berhasil diupload: {uploaded_file.name}")
             
             # Validasi kolom
-            required_columns = ['content']
-            missing_columns = [col for col in required_columns if col not in df.columns]
-            
-            if missing_columns:
-                st.error(f"File harus memiliki kolom: {', '.join(missing_columns)}")
+            if 'content' not in df.columns:
+                st.error("File harus memiliki kolom 'content'")
                 return None
             
             # Ambil 8000 data pertama jika lebih
@@ -106,41 +103,202 @@ def upload_data():
         with col3:
             st.metric("Rata-rata Kata", f"{df['jumlah_kata'].mean():.1f}")
         
-        # Tampilkan distribusi sentimen
-        st.subheader("Distribusi Sentimen")
-        sentiment_counts = df['content'].value_counts()
-        
-        fig, ax = plt.subplots(1, 2, figsize=(12, 4))
-        
-        # Pie chart
-        colors = ['#2ecc71', '#e74c3c', '#3498db']
-        ax[0].pie(sentiment_counts.values, labels=sentiment_counts.index, 
-                  autopct='%1.1f%%', colors=colors[:len(sentiment_counts)], startangle=90)
-        ax[0].set_title('Distribusi Sentimen')
-        
-        # Bar chart
-        bars = ax[1].bar(sentiment_counts.index, sentiment_counts.values, 
-                         color=colors[:len(sentiment_counts)], alpha=0.7)
-        ax[1].set_xlabel('Sentimen')
-        ax[1].set_ylabel('Jumlah')
-        ax[1].set_title('Jumlah per Kategori Sentimen')
-        ax[1].set_xticks(range(len(sentiment_counts)))
-        ax[1].set_xticklabels(sentiment_counts.index)
-        
-        # Tambah nilai di atas bar
-        for bar, count in zip(bars, sentiment_counts.values):
-            height = bar.get_height()
-            ax[1].text(bar.get_x() + bar.get_width()/2., height + 3,
-                      f'{count}', ha='center', va='bottom')
-        
-        plt.tight_layout()
-        st.pyplot(fig)
+        # Tampilkan contoh data
+        with st.expander("Contoh Data (5 baris pertama)"):
+            for i in range(min(5, len(df))):
+                content = str(df['content'].iloc[i])
+                
+                st.write(f"**Data {i+1}:**")
+                st.write(f"- Konten: {content[:70]}...")
+                st.write(f"- Jumlah kata: {df['jumlah_kata'].iloc[i]}")
+                st.write("---") 
     
     return df
 
+def lexicon_sentiment_labeling(df):
+    """Pelabelan sentimen dengan lexicon"""
+    st.header("2. PELABELAN SENTIMEN MENGGUNAKAN LEXICON")
+    
+    # Lexicon yang diperluas untuk Bahasa Indonesia dengan penanganan kalimat rancu
+    positive_words = [
+        'bagus', 'baik', 'mantap', 'cepat', 'mudah', 'praktis', 'terbaik',
+        'puas', 'sukses', 'senang', 'murah', 'keren', 'hebat', 'suka',
+        'tolong', 'bantu', 'recommended', 'lancar', 'memuaskan', 'nyaman',
+        'aman', 'profit', 'untung', 'cinta', 'setia', 'gembira', 'bahagia',
+        'nikmat', 'enak', 'lezat', 'hemat', 'efisien', 'efektif', 'semangat',
+        'antusias', 'luar biasa', 'wow', 'excellent', 'awesome', 'fantastic',
+        'great', 'good', 'nice', 'perfect', 'sempurna', 'istimewa', 'unggul',
+        'optimal', 'maksimal', 'sangat baik', 'sangat bagus', 'memukau',
+        'mengesankan', 'cepat sekali', 'murah sekali', 'sangat membantu',
+        'sangat memuaskan', 'profesional', 'ramah', 'sopan', 'jujur',
+        'tepat waktu', 'akurat', 'responsif', 'inovasi', 'kreatif',
+        'handal', 'andal', 'terpercaya', 'amanah', 'solutif', 'efektif',
+        'terjangkau', 'lumayan', 'cukup'
+    ]
+    
+    negative_words = [
+        'buruk', 'jelek', 'lambat', 'sulit', 'ribet', 'mahal', 'gagal',
+        'kecewa', 'sedih', 'marah', 'kesal', 'jengkel', 'bosan', 'sebel',
+        'menyesal', 'menyedihkan', 'menyebalkan', 'parah', 'bermasalah',
+        'error', 'bug', 'kacau', 'rusak', 'hilang', 'terlambat', 'telat',
+        'susah', 'payah', 'lemot', 'bangkrut', 'rugi', 'sial', 'celaka',
+        'mengerikan', 'horor', 'takut', 'khawatir', 'cemas', 'stress',
+        'frustasi', 'mengecewakan', 'menipu', 'bodoh', 'tolol', 'goblok',
+        'anjing', 'bangsat', 'kontol', 'asu', 'jancok', 'parah sekali',
+        'sangat buruk', 'sangat jelek', 'sangat lambat', 'sangat mahal',
+        'tidak bisa', 'tidak bisa dipakai', 'tidak berfungsi', 'tidak responsif',
+        'tidak profesional', 'kasar', 'tidak sopan', 'curang', 'penipu',
+        'mencurigakan', 'berbahaya', 'menakutkan', 'menjengkelkan', 'membosankan',
+        'mengecewa', 'menyusahkan', 'merepotkan', 'menghambat', 'menyakitkan',
+        'standar', 'biasa', 'tidak spesial'
+    ]
+    
+    # Kata-kata pembalik/negasi
+    negation_words = ['tidak', 'bukan', 'belum', 'jangan', 'kurang', 'sedikit', 'agak', 'cukup', 'lumayan']
+    
+    # Kata-kata intensifier
+    intensifier_words = ['sangat', 'sekali', 'banget', 'amat', 'terlalu', 'luar biasa']
+    
+    # Fungsi untuk pelabelan sentimen dengan penanganan kalimat rancu
+    def lexicon_sentiment_analysis_advanced(text):
+        if not isinstance(text, str):
+            return 'neutral'
+
+        text_lower = text.lower()
+        words = text_lower.split()
+        
+        positive_count = 0
+        negative_count = 0
+        
+        # Analisis kata per kata dengan konteks
+        for i, word in enumerate(words):
+            # Cek kata positif
+            if word in positive_words:
+                # Cek apakah ada kata negasi sebelumnya
+                has_negation = False
+                for j in range(max(0, i-3), i):
+                    if words[j] in negation_words:
+                        has_negation = True
+                        break
+                
+                if has_negation:
+                    negative_count += 1  # Kata positif dengan negasi menjadi negatif
+                else:
+                    positive_count += 1
+                    
+            # Cek kata negatif
+            elif word in negative_words:
+                # Cek apakah ada kata negasi sebelumnya
+                has_negation = False
+                for j in range(max(0, i-3), i):
+                    if words[j] in negation_words:
+                        has_negation = True
+                        break
+                
+                if has_negation:
+                    positive_count += 1  # Kata negatif dengan negasi menjadi positif
+                else:
+                    negative_count += 1
+        
+        # Cek kata kunci yang sangat kuat
+        strong_positive = any(word in text_lower for word in ['sangat baik', 'sangat bagus', 'luar biasa', 'terbaik'])
+        strong_negative = any(word in text_lower for word in ['sangat buruk', 'sangat jelek', 'parah sekali', 'penipu'])
+        
+        # Penanganan khusus untuk kalimat rancu
+        ambiguous_patterns = [
+            'kurang begitu', 'tidak terlalu', 'agak', 'sedikit',
+            'cukup', 'lumayan', 'standar', 'biasa saja'
+        ]
+        
+        is_ambiguous = any(pattern in text_lower for pattern in ambiguous_patterns)
+        
+        # Jika kalimat ambigu, berikan bobot khusus
+        if is_ambiguous:
+            # Untuk kalimat seperti "kurang begitu mahal", mahal adalah negatif
+            # tapi "kurang begitu" membuatnya kurang negatif
+            if 'mahal' in text_lower and ('kurang' in text_lower or 'tidak' in text_lower):
+                positive_count += 1
+                negative_count -= 0.5 if negative_count > 0 else 0
+            
+            # Untuk kalimat seperti "tidak terlalu bagus", bagus adalah positif
+            # tapi "tidak terlalu" membuatnya kurang positif
+            elif 'bagus' in text_lower or 'baik' in text_lower:
+                if 'tidak' in text_lower or 'kurang' in text_lower:
+                    negative_count += 1
+                    positive_count -= 0.5 if positive_count > 0 else 0
+        
+        # Hitung akhir dengan penyesuaian
+        if strong_positive:
+            return 'positive'
+        elif strong_negative:
+            return 'negative'
+        elif positive_count == negative_count:
+            # Default ke positif jika netral dan tidak ambigu
+            if not is_ambiguous:
+                return 'positive'
+            else:
+                # Untuk kalimat ambigu, cenderung ke negatif (karena biasanya kritik)
+                return 'negative'
+        
+        return 'positive' if positive_count > negative_count else 'negative'
+    
+    # Terapkan pelabelan advanced
+    with st.spinner("Melabeli sentimen dengan analisis lanjutan..."):
+        df['sentiment_label'] = df['content'].apply(lexicon_sentiment_analysis_advanced)
+    
+    # HAPUS jika ada yang masih netral (tidak seharusnya ada)
+    df = df[df['sentiment_label'].isin(['positive', 'negative'])].copy()
+    
+    # Hitung distribusi sentimen
+    sentiment_distribution = df['sentiment_label'].value_counts()
+    total_data = len(df)
+    
+    # Tampilkan statistik singkat
+    st.success(f"Pelabelan selesai: {total_data} ulasan")
+    
+    # HANYA MENAMPILKAN GRAFIK - HAPUS ANALISIS STATISTIK TABEL
+    st.subheader("HASIL PELABELAN SENTIMEN:")
+    
+    # Visualisasi grafik saja
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    
+    # Pie chart distribusi sentimen
+    sentiment_counts = df['sentiment_label'].value_counts()
+    colors = ['#2ecc71', '#e74c3c']
+    axes[0].pie(sentiment_counts.values, labels=sentiment_counts.index, 
+                autopct='%1.1f%%', colors=colors, startangle=90)
+    axes[0].set_title('Distribusi Sentimen\n(Hanya Positif & Negatif)')
+    
+    # Bar plot jumlah ulasan per sentimen
+    axes[1].bar(sentiment_counts.index, sentiment_counts.values, color=colors, alpha=0.7)
+    axes[1].set_xlabel('Sentimen')
+    axes[1].set_ylabel('Jumlah Ulasan')
+    axes[1].set_title('Jumlah Ulasan per Kategori')
+    for i, v in enumerate(sentiment_counts.values):
+        axes[1].text(i, v + max(sentiment_counts.values)*0.01, str(v), ha='center')
+    
+    plt.tight_layout()
+    st.pyplot(fig)
+    
+    # Tampilkan contoh hasil pelabelan
+    st.subheader("CONTOH HASIL PELABELAN:")
+    
+    sample_data = df.head(5).copy()
+    for i in range(len(sample_data)):
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.write(f"**Ulasan {i+1}:** {sample_data['content'].iloc[i][:100]}...")
+        with col2:
+            sentiment = sample_data['sentiment_label'].iloc[i]
+            color = "green" if sentiment == 'positive' else "red"
+            st.markdown(f"<span style='color: {color}; font-weight: bold;'>{sentiment.upper()}</span>", unsafe_allow_html=True)
+        st.write("---")
+    
+    return df, sentiment_distribution
+
 def text_preprocessing(df):
     """Preprocessing teks"""
-    st.header("2. TEXT PREPROCESSING")
+    st.header("3. TEXT PREPROCESSING")
     
     # Inisialisasi tools
     factory = StopWordRemoverFactory()
@@ -178,32 +336,27 @@ def text_preprocessing(df):
     # Proses preprocessing
     st.subheader("Memulai preprocessing...")
     
-    with st.spinner("Sedang memproses teks..."):
-        # Cleaning
-        df['cleaned_text'] = df['content'].apply(clean_text)
-        
-        # Remove stopwords
-        df['text_no_stopwords'] = df['cleaned_text'].apply(remove_stopwords)
-        
-        # Tokenization
-        df['tokens'] = df['text_no_stopwords'].apply(tokenize_text)
-        
-        # Gabungkan token kembali menjadi string untuk TF-IDF
-        df['processed_text'] = df['tokens'].apply(lambda x: ' '.join(x))
-        
-        # Hitung jumlah kata setelah preprocessing
-        df['word_count_processed'] = df['processed_text'].apply(count_words)
+    # Cleaning
+    df['cleaned_text'] = df['content'].apply(clean_text)
+    
+    # Remove stopwords
+    df['text_no_stopwords'] = df['cleaned_text'].apply(remove_stopwords)
+    
+    # Tokenization
+    df['tokens'] = df['text_no_stopwords'].apply(tokenize_text)
+    
+    # Gabungkan token kembali menjadi string untuk TF-IDF
+    df['processed_text'] = df['tokens'].apply(lambda x: ' '.join(x))
+    
+    # Hitung jumlah kata setelah preprocessing
+    df['word_count_processed'] = df['processed_text'].apply(count_words)
     
     st.success("Preprocessing selesai!")
     
     # Tampilkan perbandingan
     st.subheader("PERBANDINGAN JUMLAH KATA:")
     
-    # Pastikan kolom 'word_count' ada
-    if 'word_count' not in df.columns:
-        df['word_count'] = df['content'].apply(count_words)
-    
-    before_total = df['word_count'].sum()
+    before_total = df['jumlah_kata'].sum()
     after_total = df['word_count_processed'].sum()
     reduction = before_total - after_total
     reduction_pct = (reduction/before_total*100) if before_total > 0 else 0
@@ -224,14 +377,14 @@ def text_preprocessing(df):
     sample_idx = 0
     st.write(f"**Original:** {df['content'].iloc[sample_idx][:100]}...")
     st.write(f"**Cleaned:** {df['processed_text'].iloc[sample_idx][:100]}...")
-    st.write(f"**Jumlah kata asli:** {df['word_count'].iloc[sample_idx]}")
+    st.write(f"**Jumlah kata asli:** {df['jumlah_kata'].iloc[sample_idx]}")
     st.write(f"**Jumlah kata setelah preprocessing:** {df['word_count_processed'].iloc[sample_idx]}")
     
     return df
 
 def create_wordcloud_viz(df):
     """Visualisasi wordcloud"""
-    st.header("3. WORDCLOUD VISUALIZATION")
+    st.header("4. WORDCLOUD VISUALIZATION")
     
     # Fungsi untuk membuat wordcloud
     def create_wordcloud(text, title, color):
@@ -277,13 +430,21 @@ def create_wordcloud_viz(df):
         all_text = ' '.join(df['processed_text'].astype(str).tolist())
         create_wordcloud(all_text, 'WordCloud Semua Ulasan Gojek', 'steelblue')
         
+        # Wordcloud untuk positif
+        positive_text = ' '.join(df[df['sentiment_label'] == 'positive']['processed_text'].astype(str).tolist())
+        create_wordcloud(positive_text, 'WordCloud - Ulasan Positif', 'green')
+        
+        # Wordcloud untuk negatif
+        negative_text = ' '.join(df[df['sentiment_label'] == 'negative']['processed_text'].astype(str).tolist())
+        create_wordcloud(negative_text, 'WordCloud - Ulasan Negatif', 'darkred')
+        
     except Exception as e:
         st.error(f"Error membuat WordCloud: {str(e)}")
         st.info("Pastikan data telah diproses dengan benar pada section sebelumnya.")
 
 def tfidf_feature_extraction(df):
     """Ekstraksi fitur TF-IDF"""
-    st.header("4. EKSTRAKSI FITUR DENGAN TF-IDF")
+    st.header("5. EKSTRAKSI FITUR DENGAN TF-IDF")
     
     # Inisialisasi TF-IDF Vectorizer
     tfidf_vectorizer = TfidfVectorizer(
@@ -296,7 +457,7 @@ def tfidf_feature_extraction(df):
     # Transformasi teks menjadi vektor TF-IDF
     with st.spinner("Melakukan transformasi TF-IDF..."):
         X = tfidf_vectorizer.fit_transform(df['processed_text'])
-        y = df['sentimen']
+        y = df['sentiment_label'].map({'positive': 1, 'negative': 0})
     
     st.success(f"Transformasi TF-IDF selesai!")
     
@@ -329,7 +490,7 @@ def tfidf_feature_extraction(df):
 
 def data_splitting(X, y):
     """Pembagian data training-testing"""
-    st.header("5. PEMBAGIAN DATA TRAINING-TESTING")
+    st.header("6. PEMBAGIAN DATA TRAINING-TESTING")
     
     # Definisikan rasio
     ratios = {
@@ -352,21 +513,21 @@ def data_splitting(X, y):
         )
         
         # Hitung distribusi sentimen di training dan testing
-        train_counts = y_train.value_counts()
-        test_counts = y_test.value_counts()
+        train_pos = sum(y_train == 1)
+        train_neg = sum(y_train == 0)
+        test_pos = sum(y_test == 1)
+        test_neg = sum(y_test == 0)
         
         col1, col2 = st.columns(2)
         with col1:
             st.write(f"**Training set:** {X_train.shape[0]} sampel")
-            for label, count in train_counts.items():
-                percentage = (count/X_train.shape[0]*100)
-                st.write(f"- {label}: {count} ({percentage:.1f}%)")
+            st.write(f"- Positif: {train_pos} ({train_pos/X_train.shape[0]*100:.1f}%)")
+            st.write(f"- Negatif: {train_neg} ({train_neg/X_train.shape[0]*100:.1f}%)")
         
         with col2:
             st.write(f"**Testing set:** {X_test.shape[0]} sampel")
-            for label, count in test_counts.items():
-                percentage = (count/X_test.shape[0]*100)
-                st.write(f"- {label}: {count} ({percentage:.1f}%)")
+            st.write(f"- Positif: {test_pos} ({test_pos/X_test.shape[0]*100:.1f}%)")
+            st.write(f"- Negatif: {test_neg} ({test_neg/X_test.shape[0]*100:.1f}%)")
         
         # Simpan hasil split
         results[ratio_name] = {
@@ -382,7 +543,7 @@ def data_splitting(X, y):
 
 def train_evaluate_svm(results):
     """Training dan evaluasi model SVM dengan iterasi dan epoch"""
-    st.header("6. TRAINING DAN EVALUASI MODEL SVM DENGAN ITERASI")
+    st.header("7. TRAINING DAN EVALUASI MODEL SVM DENGAN ITERASI")
     st.write("="*60)
     
     # Konfigurasi iterasi dan epoch
@@ -448,13 +609,22 @@ def train_evaluate_svm(results):
             
             # Evaluasi
             accuracy = accuracy_score(y_test, y_pred)
-            report = classification_report(y_test, y_pred, output_dict=True)
+            report = classification_report(y_test, y_pred, target_names=['negative', 'positive'], output_dict=True)
             cm = confusion_matrix(y_test, y_pred)
             
             # Cross-validation untuk evaluasi lebih robust
             cv_scores = cross_val_score(svm_model, X_train, y_train, cv=5, scoring='accuracy')
             cv_mean = cv_scores.mean()
             cv_std = cv_scores.std()
+            
+            # Hitung akurasi per kategori
+            # Akurasi untuk kelas negatif (0)
+            neg_indices = y_test == 0
+            neg_accuracy = accuracy_score(y_test[neg_indices], y_pred[neg_indices]) if sum(neg_indices) > 0 else 0
+            
+            # Akurasi untuk kelas positif (1)
+            pos_indices = y_test == 1
+            pos_accuracy = accuracy_score(y_test[pos_indices], y_pred[pos_indices]) if sum(pos_indices) > 0 else 0
             
             # Simpan hasil iterasi
             iteration_result = {
@@ -468,7 +638,9 @@ def train_evaluate_svm(results):
                 'predictions': y_pred,
                 'y_true': y_test,
                 'classification_report': report,
-                'confusion_matrix': cm
+                'confusion_matrix': cm,
+                'neg_accuracy': neg_accuracy,
+                'pos_accuracy': pos_accuracy
             }
             
             iteration_results.append(iteration_result)
@@ -588,11 +760,10 @@ def train_evaluate_svm(results):
                     cm = best_iteration_data['confusion_matrix']
                     
                     fig_cm, ax_cm = plt.subplots(figsize=(6, 5))
-                    unique_labels = sorted(np.unique(np.concatenate([best_iteration_data['y_true'], best_iteration_data['predictions']])))
                     
                     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
-                                xticklabels=unique_labels,
-                                yticklabels=unique_labels,
+                                xticklabels=['Negatif', 'Positif'],
+                                yticklabels=['Negatif', 'Positif'],
                                 ax=ax_cm)
                     
                     ax_cm.set_title(f'Confusion Matrix\nAkurasi: {best_iteration_data["accuracy"]:.4f}')
@@ -761,7 +932,7 @@ def train_evaluate_svm(results):
 
 def visualize_results(all_results, accuracy_comparison):
     """Visualisasi hasil"""
-    st.header("7. VISUALISASI HASIL")
+    st.header("8. VISUALISASI HASIL")
     
     # Plot confusion matrix untuk setiap kombinasi
     st.subheader("Confusion Matrix Model Terbaik per Rasio")
@@ -799,19 +970,9 @@ def visualize_results(all_results, accuracy_comparison):
         if best_cm is not None:
             ax = axes[idx]
             
-            # Dapatkan label unik
-            if 'best_model' in ratio_results[list(ratio_results.keys())[0]]:
-                # Untuk format baru dengan iterasi
-                unique_labels = sorted(np.unique(all_results[list(all_results.keys())[0]]
-                                                [list(ratio_results.keys())[0]]
-                                                ['iteration_results'][0]['y_true']))
-            else:
-                # Untuk format lama
-                unique_labels = ['negative', 'positive']
-            
             sns.heatmap(best_cm, annot=True, fmt='d', cmap='Blues', 
-                        xticklabels=unique_labels,
-                        yticklabels=unique_labels,
+                        xticklabels=['Negatif', 'Positif'],
+                        yticklabels=['Negatif', 'Positif'],
                         ax=ax)
             
             ax.set_title(f'{best_title}\nAkurasi: {best_accuracy:.4f}')
@@ -903,8 +1064,8 @@ def visualize_results(all_results, accuracy_comparison):
     return accuracy_df if accuracy_comparison else None
 
 def classify_new_sentences():
-    """Klasifikasi kalimat baru menggunakan model yang sudah disimpan - TANPA PREPROCESSING"""
-    st.header("8. KLASIFIKASI KALIMAT BARU")
+    """Klasifikasi kalimat baru menggunakan model yang sudah disimpan"""
+    st.header("9. KLASIFIKASI KALIMAT BARU")
     
     # Cek apakah model sudah disimpan
     if 'best_model_package' not in st.session_state:
@@ -1080,13 +1241,14 @@ def main():
     st.sidebar.title("Fitur Analisis")
     sections = [
         "1. Upload Data",
-        "2. Preprocessing Text",
-        "3. WordCloud",
-        "4. Ekstraksi Fitur TF-IDF",
-        "5. Pembagian Data",
-        "6. Training & Evaluasi SVM",
-        "7. Visualisasi Hasil",
-        "8. Klasifikasi Kalimat Baru"
+        "2. Pelabelan Sentimen",
+        "3. Preprocessing Text",
+        "4. WordCloud",
+        "5. Ekstraksi Fitur TF-IDF",
+        "6. Pembagian Data",
+        "7. Training & Evaluasi SVM",
+        "8. Visualisasi Hasil",
+        "9. Klasifikasi Kalimat Baru"
     ]
     
     selected_section = st.sidebar.radio("Pilih Section:", sections)
@@ -1094,6 +1256,8 @@ def main():
     # Inisialisasi session state untuk menyimpan data antar section
     if 'df' not in st.session_state:
         st.session_state.df = None
+    if 'sentiment_distribution' not in st.session_state:
+        st.session_state.sentiment_distribution = None
     if 'tfidf_vectorizer' not in st.session_state:
         st.session_state.tfidf_vectorizer = None
     if 'X' not in st.session_state:
@@ -1113,43 +1277,49 @@ def main():
     if selected_section == "1. Upload Data":
         st.session_state.df = upload_data()
     
-    elif selected_section == "2. Preprocessing Text":
+    elif selected_section == "2. Pelabelan Sentimen":
+        if st.session_state.df is not None:
+            st.session_state.df, st.session_state.sentiment_distribution = lexicon_sentiment_labeling(st.session_state.df)
+        else:
+            st.warning("Silakan upload data terlebih dahulu di section '1. Upload Data'!")
+    
+    elif selected_section == "3. Preprocessing Text":
         if st.session_state.df is not None:
             st.session_state.df = text_preprocessing(st.session_state.df)
         else:
             st.warning("Silakan upload data terlebih dahulu di section '1. Upload Data'!")
     
-    elif selected_section == "3. WordCloud":
+    elif selected_section == "4. WordCloud":
         if st.session_state.df is not None:
             create_wordcloud_viz(st.session_state.df)
         else:
             st.warning("Silakan upload data terlebih dahulu di section '1. Upload Data'!")
     
-    elif selected_section == "4. Ekstraksi Fitur TF-IDF":
+    elif selected_section == "5. Ekstraksi Fitur TF-IDF":
         if st.session_state.df is not None:
             st.session_state.X, st.session_state.y, st.session_state.tfidf_vectorizer = tfidf_feature_extraction(st.session_state.df)
         else:
             st.warning("Silakan upload data terlebih dahulu di section '1. Upload Data'!")
     
-    elif selected_section == "5. Pembagian Data":
+    elif selected_section == "6. Pembagian Data":
         if st.session_state.X is not None and st.session_state.y is not None:
             st.session_state.results = data_splitting(st.session_state.X, st.session_state.y)
         else:
-            st.warning("Silakan lakukan ekstraksi fitur terlebih dahulu di section '4. Ekstraksi Fitur TF-IDF'!")
+            st.warning("Silakan lakukan ekstraksi fitur terlebih dahulu di section '5. Ekstraksi Fitur TF-IDF'!")
     
-    elif selected_section == "6. Training & Evaluasi SVM":
+    elif selected_section == "7. Training & Evaluasi SVM":
         if st.session_state.results is not None:
             st.session_state.all_results, st.session_state.accuracy_comparison = train_evaluate_svm(st.session_state.results)
         else:
-            st.warning("Silakan lakukan pembagian data terlebih dahulu di section '5. Pembagian Data'!")
+            st.warning("Silakan lakukan pembagian data terlebih dahulu di section '6. Pembagian Data'!")
     
-    elif selected_section == "7. Visualisasi Hasil":
+    elif selected_section == "8. Visualisasi Hasil":
         if st.session_state.all_results is not None:
             visualize_results(st.session_state.all_results, st.session_state.accuracy_comparison)
         else:
-            st.warning("Silakan latih model terlebih dahulu di section '6. Training & Evaluasi SVM'!")
+            st.warning("Silakan latih model terlebih dahulu di section '7. Training & Evaluasi SVM'!")
     
-    elif selected_section == "8. Klasifikasi Kalimat Baru":
+    elif selected_section == "9. Klasifikasi Kalimat Baru":
         classify_new_sentences()
     
     # Footer
