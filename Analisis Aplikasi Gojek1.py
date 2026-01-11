@@ -1536,23 +1536,6 @@ def implementasi_sistem():
                     st.success(f"POSITIF - Kalimat ini menunjukkan sentimen positif terhadap layanan Gojek.")
                 else:
                     st.error(f"NEGATIF - Kalimat ini menunjukkan sentimen negatif terhadap layanan Gojek.")
-                
-                st.write("Catatan Implementasi:")
-                st.info("Untuk implementasi yang sebenarnya, sistem akan: 1. Melakukan preprocessing teks input (cleaning, stopword removal, tokenization) 2. Menggunakan TF-IDF vectorizer yang sama dengan saat training 3. Mentransform teks menjadi vektor fitur 4. Melakukan prediksi menggunakan model SVM terbaik")
-    
-    # Informasi tambahan
-    st.markdown("---")
-    st.subheader("Informasi Sistem")
-    
-    col_info1, col_info2 = st.columns(2)
-    
-    with col_info1:
-        st.write("Arsitektur Sistem:")
-        st.info("1. Input: Teks ulasan pengguna 2. Preprocessing: Cleaning, stopword removal, tokenization 3. Feature Extraction: TF-IDF vectorization 4. Classification: SVM dengan kernel linear/polynomial 5. Output: Sentimen (Positif/Negatif)")
-    
-    with col_info2:
-        st.write("Keunggulan Sistem:")
-        st.success("Akurat: Menggunakan model SVM dengan akurasi tinggi Cepat: Proses klasifikasi real-time Skalabel: Dapat menangani banyak data sekaligus Robust: Dapat mengenali pola kalimat kompleks")
     
     return model_info
 
