@@ -1277,7 +1277,7 @@ def main():
     # Footer
     st.sidebar.markdown("---")
     st.sidebar.info("""
-    **Analisis Sentimen Ulasan Gojek 2026**
+    **Analisis Sentimen Ulasan Gojek 2026** """)
 
 if __name__ == "__main__":
     main()
