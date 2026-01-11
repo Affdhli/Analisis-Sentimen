@@ -108,7 +108,7 @@ def upload_data():
         
         # Tampilkan distribusi sentimen
         st.subheader("Distribusi Sentimen")
-        sentiment_counts = df['sentimen'].value_counts()
+        sentiment_counts = df['content'].value_counts()
         
         fig, ax = plt.subplots(1, 2, figsize=(12, 4))
         
