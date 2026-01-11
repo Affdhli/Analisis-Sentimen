@@ -1337,14 +1337,6 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.info("""
     **Analisis Sentimen Ulasan Gojek 2026**
-    
-    Fitur:
-    - Pelabelan sentimen dengan lexicon
-    - Preprocessing teks
-    - WordCloud visualization
-    - TF-IDF feature extraction
-    - Training SVM dengan iterasi (kernel: linear & polynomial)
-    - Klasifikasi kalimat baru
     """)
 
 if __name__ == "__main__":
