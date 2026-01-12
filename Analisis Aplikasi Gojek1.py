@@ -315,14 +315,11 @@ def text_preprocessing(df):
         """Tokenisasi teks"""
         return word_tokenize(text)
     
-    def count_sentences(text):
-        """Menghitung jumlah kalimat"""
+    def count_text_length(text):
+        """Menghitung panjang teks"""
         if not isinstance(text, str):
             return 0
-        # Hitung kalimat berdasarkan titik, tanda tanya, tanda seru
-        sentences = re.split(r'[.!?]+', text)
-        # Filter kalimat yang tidak kosong
-        return len([s for s in sentences if s.strip()])
+        return len(text)
     
     # Proses preprocessing
     st.subheader("Memulai preprocessing...")
@@ -339,43 +336,42 @@ def text_preprocessing(df):
     # Gabungkan token kembali menjadi string untuk TF-IDF
     df['processed_text'] = df['tokens'].apply(lambda x: ' '.join(x))
     
-    # Hitung jumlah kalimat setelah preprocessing
-    df['sentence_count_processed'] = df['processed_text'].apply(count_sentences)
+    # Hitung panjang teks setelah preprocessing
+    df['text_length_processed'] = df['processed_text'].apply(count_text_length)
     
     st.success("Preprocessing selesai!")
     
     # Tampilkan perbandingan
-    st.subheader("PERBANDINGAN JUMLAH KALIMAT:")
+    st.subheader("PERBANDINGAN HASIL ULASAN:")
     
-    # Hitung jumlah kalimat asli
-    df['sentence_count'] = df['content'].apply(count_sentences)
+    # Hitung panjang teks asli
+    df['text_length'] = df['content'].apply(count_text_length)
     
-    before_total = df['sentence_count'].sum()
-    after_total = df['sentence_count_processed'].sum()
+    before_total = df['text_length'].sum()
+    after_total = df['text_length_processed'].sum()
     reduction = before_total - after_total
     reduction_pct = (reduction/before_total*100) if before_total > 0 else 0
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.metric("Sebelum preprocessing", f"{before_total:,} kalimat")
+        st.metric("Sebelum preprocessing", f"{before_total:,} karakter")
     
     with col2:
-        st.metric("Setelah preprocessing", f"{after_total:,} kalimat")
+        st.metric("Setelah preprocessing", f"{after_total:,} karakter")
     
-    st.info(f"Pengurangan: {reduction:,} kalimat ({reduction_pct:.1f}%)")
+    st.info(f"Pengurangan: {reduction:,} karakter ({reduction_pct:.1f}%)")
     
     # Contoh hasil preprocessing
     st.subheader("CONTOH HASIL PREPROCESSING:")
     
     sample_idx = 0
-    st.write(f"**Original:** {df['content'].iloc[sample_idx][:100]}...")
-    st.write(f"**Cleaned:** {df['processed_text'].iloc[sample_idx][:100]}...")
-    st.write(f"**Jumlah kalimat asli:** {df['sentence_count'].iloc[sample_idx]}")
-    st.write(f"**Jumlah kalimat setelah preprocessing:** {df['sentence_count_processed'].iloc[sample_idx]}")
+    st.write(f"**Ulasan Asli:** {df['content'].iloc[sample_idx][:100]}...")
+    st.write(f"**Ulasan Setelah Preprocessing:** {df['processed_text'].iloc[sample_idx][:100]}...")
+    st.write(f"**Panjang ulasan asli:** {df['text_length'].iloc[sample_idx]} karakter")
+    st.write(f"**Panjang ulasan setelah preprocessing:** {df['text_length_processed'].iloc[sample_idx]} karakter")
     
     return df
-
 def create_wordcloud_viz(df):
     """Visualisasi wordcloud"""
     st.header("4. WORDCLOUD VISUALIZATION")
