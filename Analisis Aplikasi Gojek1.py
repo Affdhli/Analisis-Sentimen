@@ -19,6 +19,7 @@ import time
 import joblib
 import pickle
 from io import BytesIO
+import your_module
 
 # Download NLTK resources
 nltk.download('punkt')
