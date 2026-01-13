@@ -19,7 +19,6 @@ import time
 import joblib
 import pickle
 from io import BytesIO
-import your_module
 
 # Download NLTK resources
 nltk.download('punkt')
@@ -1424,22 +1423,104 @@ def visualize_results(all_results, accuracy_comparison):
     
     return accuracy_df if accuracy_comparison else None
 
-from your_module import load_model_from_file
-
-# Muat model terbaru
-model_package = load_model_from_file()
-
-# Atau muat model spesifik
-model_package = load_model_from_file("best_model_20240101_120000.pkl")
-
-# Gunakan untuk prediksi
-if model_package:
-    model = model_package['best_model_info']['model']
-    vectorizer = model_package['tfidf_vectorizer']
+def model_management_ui():
+    """UI untuk manajemen model"""
+    st.header("🗃️ Manajemen Model")
     
-    # Lakukan prediksi
-    text_vectorized = vectorizer.transform([new_text])
-    prediction = model.predict(text_vectorized)
+    tab1, tab2, tab3, tab4 = st.tabs(["📤 Save Models", "📥 Load Model", "📂 Available Models", "🔄 Delete Models"])
+    
+    with tab1:
+        st.subheader("Simpan Model")
+        if 'all_results' in st.session_state and 'tfidf_vectorizer' in st.session_state:
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("💾 Simpan Model Terbaik", key="save_best_model"):
+                    filename = save_models(
+                        st.session_state.tfidf_vectorizer,
+                        st.session_state.all_results
+                    )
+                    if filename:
+                        st.session_state.last_saved_model = filename
+            
+            with col2:
+                if st.button("📚 Simpan Semua Model", key="save_all_models"):
+                    folder_name = save_individual_models(
+                        st.session_state.all_results,
+                        st.session_state.tfidf_vectorizer
+                    )
+        else:
+            st.warning("❌ Tidak ada model yang tersedia untuk disimpan. Silakan training model terlebih dahulu.")
+    
+    with tab2:
+        st.subheader("Muat Model dari File")
+        
+        # Pilihan: Upload file atau pilih dari list
+        option = st.radio("Pilih metode:", ["📁 Upload File", "📂 Pilih dari List"])
+        
+        if option == "📁 Upload File":
+            uploaded_file = st.file_uploader(
+                "Pilih file model (.pkl)", 
+                type=['pkl'],
+                key="model_uploader"
+            )
+            if uploaded_file is not None:
+                # Simpan file sementara
+                temp_file = f"temp_uploaded_model_{uploaded_file.name}"
+                with open(temp_file, 'wb') as f:
+                    f.write(uploaded_file.getvalue())
+                
+                if st.button("🔍 Load Uploaded Model", key="load_uploaded"):
+                    model_package = load_model_from_file(temp_file)
+                    if model_package:
+                        st.success("✅ Model berhasil dimuat!")
+        
+        else:
+            model_files = get_available_models()
+            if model_files:
+                selected_file = st.selectbox(
+                    "Pilih file model:",
+                    model_files,
+                    key="select_model_file"
+                )
+                
+                if st.button("🔍 Load Selected Model", key="load_selected"):
+                    model_package = load_model_from_file(selected_file)
+                    if model_package:
+                        st.success("✅ Model berhasil dimuat!")
+    
+    with tab3:
+        st.subheader("Model yang Tersedia")
+        get_available_models()
+    
+    with tab4:
+        st.subheader("Hapus Model")
+        model_files = [f for f in os.listdir() if f.endswith('.pkl')]
+        
+        if model_files:
+            files_to_delete = st.multiselect(
+                "Pilih file yang akan dihapus:",
+                model_files,
+                key="delete_files_select"
+            )
+            
+            if files_to_delete:
+                st.warning(f"⚠️ Anda akan menghapus {len(files_to_delete)} file:")
+                for file in files_to_delete:
+                    st.write(f"- {file}")
+                
+                if st.button("🗑️ Hapus File Terpilih", type="primary", key="confirm_delete"):
+                    deleted_count = 0
+                    for file in files_to_delete:
+                        try:
+                            os.remove(file)
+                            deleted_count += 1
+                        except Exception as e:
+                            st.error(f"Gagal menghapus {file}: {str(e)}")
+                    
+                    st.success(f"✅ Berhasil menghapus {deleted_count} file!")
+                    st.experimental_rerun()
+        else:
+            st.info("📭 Tidak ada file model yang tersedia untuk dihapus.")
 
 
 def implementasi_sistem():
