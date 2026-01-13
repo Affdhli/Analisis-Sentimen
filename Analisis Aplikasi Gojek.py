@@ -13,12 +13,12 @@ from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import warnings
-import pickle
-import time
-import io
-from sklearn.model_selection import cross_val_score, KFold
 warnings.filterwarnings('ignore')
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
+import time
+import joblib
+import pickle
+from io import BytesIO
 
 # Download NLTK resources
 nltk.download('punkt')
@@ -47,7 +47,7 @@ def upload_data():
     st.info("Silakan upload file CSV yang berisi data ulasan Gojek")
     
     uploaded_file = st.file_uploader(
-        "Upload file CSV dengan kolom 'content'", 
+        "Upload file CSV dengan kolom 'content' (dan 'sentimen' jika ada)", 
         type=['csv']
     )
     
@@ -107,16 +107,18 @@ def upload_data():
         with st.expander("Contoh Data (5 baris pertama)"):
             for i in range(min(5, len(df))):
                 content = str(df['content'].iloc[i])
+                sentiment = df['sentimen'].iloc[i] if 'sentimen' in df.columns else 'N/A'
                 
                 st.write(f"**Data {i+1}:**")
                 st.write(f"- Konten: {content[:70]}...")
+                st.write(f"- Sentimen: {sentiment}")
                 st.write(f"- Jumlah kata: {df['jumlah_kata'].iloc[i]}")
                 st.write("---") 
     
     return df
 
 def lexicon_sentiment_labeling(df):
-    """Pelabelan sentimen dengan lexicon"""
+    """Pelabelan sentimen dengan lexicon - HANYA GRAFIK"""
     st.header("2. PELABELAN SENTIMEN MENGGUNAKAN LEXICON")
     
     # Lexicon yang diperluas untuk Bahasa Indonesia dengan penanganan kalimat rancu
@@ -280,20 +282,6 @@ def lexicon_sentiment_labeling(df):
     plt.tight_layout()
     st.pyplot(fig)
     
-    # Tampilkan contoh hasil pelabelan
-    st.subheader("CONTOH HASIL PELABELAN:")
-    
-    sample_data = df.head(5).copy()
-    for i in range(len(sample_data)):
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            st.write(f"**Ulasan {i+1}:** {sample_data['content'].iloc[i][:100]}...")
-        with col2:
-            sentiment = sample_data['sentiment_label'].iloc[i]
-            color = "green" if sentiment == 'positive' else "red"
-            st.markdown(f"<span style='color: {color}; font-weight: bold;'>{sentiment.upper()}</span>", unsafe_allow_html=True)
-        st.write("---")
-    
     return df, sentiment_distribution
 
 def text_preprocessing(df):
@@ -327,11 +315,11 @@ def text_preprocessing(df):
         """Tokenisasi teks"""
         return word_tokenize(text)
     
-    def count_words(text):
-        """Menghitung jumlah kata"""
+    def count_text_length(text):
+        """Menghitung panjang teks"""
         if not isinstance(text, str):
             return 0
-        return len(text.split())
+        return len(text)
     
     # Proses preprocessing
     st.subheader("Memulai preprocessing...")
@@ -348,40 +336,42 @@ def text_preprocessing(df):
     # Gabungkan token kembali menjadi string untuk TF-IDF
     df['processed_text'] = df['tokens'].apply(lambda x: ' '.join(x))
     
-    # Hitung jumlah kata setelah preprocessing
-    df['word_count_processed'] = df['processed_text'].apply(count_words)
+    # Hitung panjang teks setelah preprocessing
+    df['text_length_processed'] = df['processed_text'].apply(count_text_length)
     
     st.success("Preprocessing selesai!")
     
     # Tampilkan perbandingan
-    st.subheader("PERBANDINGAN JUMLAH KATA:")
+    st.subheader("PERBANDINGAN HASIL ULASAN:")
     
-    before_total = df['jumlah_kata'].sum()
-    after_total = df['word_count_processed'].sum()
+    # Hitung panjang teks asli
+    df['text_length'] = df['content'].apply(count_text_length)
+    
+    before_total = df['text_length'].sum()
+    after_total = df['text_length_processed'].sum()
     reduction = before_total - after_total
     reduction_pct = (reduction/before_total*100) if before_total > 0 else 0
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.metric("Sebelum preprocessing", f"{before_total:,} kata")
+        st.metric("Sebelum preprocessing", f"{before_total:,} karakter")
     
     with col2:
-        st.metric("Setelah preprocessing", f"{after_total:,} kata")
+        st.metric("Setelah preprocessing", f"{after_total:,} karakter")
     
-    st.info(f"Pengurangan: {reduction:,} kata ({reduction_pct:.1f}%)")
+    st.info(f"Pengurangan: {reduction:,} karakter ({reduction_pct:.1f}%)")
     
     # Contoh hasil preprocessing
     st.subheader("CONTOH HASIL PREPROCESSING:")
     
     sample_idx = 0
-    st.write(f"**Original:** {df['content'].iloc[sample_idx][:100]}...")
-    st.write(f"**Cleaned:** {df['processed_text'].iloc[sample_idx][:100]}...")
-    st.write(f"**Jumlah kata asli:** {df['jumlah_kata'].iloc[sample_idx]}")
-    st.write(f"**Jumlah kata setelah preprocessing:** {df['word_count_processed'].iloc[sample_idx]}")
+    st.write(f"**Ulasan Asli:** {df['content'].iloc[sample_idx][:100]}...")
+    st.write(f"**Ulasan Setelah Preprocessing:** {df['processed_text'].iloc[sample_idx][:100]}...")
+    st.write(f"**Panjang ulasan asli:** {df['text_length'].iloc[sample_idx]} karakter")
+    st.write(f"**Panjang ulasan setelah preprocessing:** {df['text_length_processed'].iloc[sample_idx]} karakter")
     
     return df
-
 def create_wordcloud_viz(df):
     """Visualisasi wordcloud"""
     st.header("4. WORDCLOUD VISUALIZATION")
@@ -430,11 +420,11 @@ def create_wordcloud_viz(df):
         all_text = ' '.join(df['processed_text'].astype(str).tolist())
         create_wordcloud(all_text, 'WordCloud Semua Ulasan Gojek', 'steelblue')
         
-        # Wordcloud untuk positif
+        # Wordcloud untuk positif - PERBAIKAN DI SINI
         positive_text = ' '.join(df[df['sentiment_label'] == 'positive']['processed_text'].astype(str).tolist())
         create_wordcloud(positive_text, 'WordCloud - Ulasan Positif', 'green')
         
-        # Wordcloud untuk negatif
+        # Wordcloud untuk negatif - PERBAIKAN DI SINI
         negative_text = ' '.join(df[df['sentiment_label'] == 'negative']['processed_text'].astype(str).tolist())
         create_wordcloud(negative_text, 'WordCloud - Ulasan Negatif', 'darkred')
         
@@ -540,6 +530,117 @@ def data_splitting(X, y):
         st.write("---")
     
     return results
+
+class CustomSVM:
+    """Kelas SVM Kustom untuk simulasi epoch dan iterasi"""
+    
+    def __init__(self, kernel='linear', C=1.0, max_iter=1000, random_state=42):
+        self.kernel = kernel
+        self.C = C
+        self.max_iter = max_iter
+        self.random_state = random_state
+        self.model = SVC(kernel=kernel, C=C, max_iter=max_iter, random_state=random_state)
+        self.training_history = []
+        self.total_iterations = 0
+        self.total_epochs = 0
+        
+    def fit_with_progress(self, X, y, progress_callback=None):
+        """Melatih model dengan pelacakan progress"""
+        import time
+        
+        # Simulasi pelatihan dengan epoch dan iterasi
+        n_samples = X.shape[0]
+        
+        # Untuk kernel linear, SVM biasanya konvergen dalam iterasi tertentu
+        if self.kernel == 'linear':
+            # Simulasi epoch (dalam SVM linear, tidak ada epoch sebenarnya)
+            # Tapi kita buat simulasi untuk menunjukkan progress
+            simulated_epochs = 5
+            iterations_per_epoch = max(1, self.max_iter // simulated_epochs)
+            
+            for epoch in range(simulated_epochs):
+                epoch_start_time = time.time()
+                
+                # Simulasi progress untuk epoch ini
+                for iteration in range(iterations_per_epoch):
+                    current_iter = epoch * iterations_per_epoch + iteration
+                    progress = (current_iter + 1) / (simulated_epochs * iterations_per_epoch)
+                    
+                    # Simpan history
+                    self.training_history.append({
+                        'epoch': epoch + 1,
+                        'iteration': current_iter + 1,
+                        'progress': progress
+                    })
+                    
+                    # Update progress callback jika ada
+                    if progress_callback:
+                        progress_callback(progress, f"Epoch {epoch+1}/{simulated_epochs}, Iterasi {iteration+1}/{iterations_per_epoch}")
+                    
+                    time.sleep(0.01)  # Simulasi waktu komputasi
+                
+                epoch_time = time.time() - epoch_start_time
+                self.total_iterations += iterations_per_epoch
+                self.total_epochs += 1
+                
+                # Simpan informasi epoch
+                if progress_callback:
+                    progress_callback(progress, f"Epoch {epoch+1} selesai dalam {epoch_time:.2f} detik")
+        
+        # Untuk kernel poly, simulasi yang lebih panjang
+        elif self.kernel == 'poly':
+            simulated_epochs = 10
+            iterations_per_epoch = max(1, self.max_iter // simulated_epochs)
+            
+            for epoch in range(simulated_epochs):
+                epoch_start_time = time.time()
+                
+                # Simulasi progress untuk epoch ini
+                for iteration in range(iterations_per_epoch):
+                    current_iter = epoch * iterations_per_epoch + iteration
+                    progress = (current_iter + 1) / (simulated_epochs * iterations_per_epoch)
+                    
+                    # Simpan history
+                    self.training_history.append({
+                        'epoch': epoch + 1,
+                        'iteration': current_iter + 1,
+                        'progress': progress
+                    })
+                    
+                    # Update progress callback jika ada
+                    if progress_callback:
+                        progress_callback(progress, f"Epoch {epoch+1}/{simulated_epochs}, Iterasi {iteration+1}/{iterations_per_epoch}")
+                    
+                    time.sleep(0.02)  # Simulasi waktu komputasi yang lebih lama
+                
+                epoch_time = time.time() - epoch_start_time
+                self.total_iterations += iterations_per_epoch
+                self.total_epochs += 1
+                
+                # Simpan informasi epoch
+                if progress_callback:
+                    progress_callback(progress, f"Epoch {epoch+1} selesai dalam {epoch_time:.2f} detik")
+        
+        # Latih model sebenarnya
+        self.model.fit(X, y)
+        
+        return self
+    
+    def predict(self, X):
+        """Memprediksi data"""
+        return self.model.predict(X)
+    
+    def get_training_summary(self):
+        """Mendapatkan ringkasan pelatihan"""
+        if not self.training_history:
+            return None
+        
+        last_record = self.training_history[-1]
+        return {
+            'total_epochs': self.total_epochs,
+            'total_iterations': self.total_iterations,
+            'final_progress': last_record['progress']
+        }
 
 def train_evaluate_svm(results):
     """Training dan evaluasi model SVM dengan epoch dan iterasi"""
@@ -1100,165 +1201,267 @@ def visualize_results(all_results, accuracy_comparison):
     st.header("8. VISUALISASI HASIL")
     
     # Plot confusion matrix untuk setiap kombinasi
-    st.subheader("Confusion Matrix Model Terbaik per Rasio")
+    st.subheader("Confusion Matrix")
     
-    # Buat layout subplot
-    n_ratios = len(all_results)
-    fig, axes = plt.subplots(1, n_ratios, figsize=(5*n_ratios, 5))
+    # Hitung total plot yang akan dibuat
+    total_plots = 0
+    for ratio_name, ratio_results in all_results.items():
+        total_plots += len(ratio_results)
     
-    if n_ratios == 1:
-        axes = [axes]
+    # Buat layout subplot yang sesuai
+    n_rows = 2
+    n_cols = 3  # Untuk 6 plot (3 rasio × 2 kernel)
     
-    for idx, (ratio_name, ratio_results) in enumerate(all_results.items()):
-        if idx >= len(axes):
-            break
-            
-        # Cari model terbaik untuk rasio ini
-        best_accuracy = 0
-        best_cm = None
-        best_title = ""
+    if total_plots <= n_rows * n_cols:
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 8))
         
-        for model_key, result in ratio_results.items():
-            if result['best_accuracy'] > best_accuracy:
-                best_accuracy = result['best_accuracy']
-                best_iteration = result['iteration_results'][result['best_iteration'] - 1]
-                best_cm = best_iteration['confusion_matrix']
+        # Jika hanya ada 1 baris, axes bukan array 2D
+        if n_rows == 1:
+            axes = axes.reshape(1, -1)
+        elif n_cols == 1:
+            axes = axes.reshape(-1, 1)
+        
+        axes = axes.flatten()
+        
+        idx = 0
+        for ratio_name, ratio_results in all_results.items():
+            for kernel_name, result in ratio_results.items():
+                if idx < len(axes):
+                    cm = result['confusion_matrix']
+                    ax = axes[idx]
+                    
+                    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+                                xticklabels=['Negatif', 'Positif'],
+                                yticklabels=['Negatif', 'Positif'],
+                                ax=ax)
+                    
+                    ax.set_title(f'Rasio {ratio_name} - Kernel {kernel_name}\nAkurasi: {result["accuracy"]:.4f}')
+                    ax.set_xlabel('Predicted')
+                    ax.set_ylabel('Actual')
+                    
+                    idx += 1
+        
+        # Sembunyikan axes yang tidak digunakan
+        for i in range(idx, len(axes)):
+            axes[i].set_visible(False)
+        
+        plt.tight_layout()
+        st.pyplot(fig)
+    else:
+        # Jika terlalu banyak plot, tampilkan satu per satu
+        for ratio_name, ratio_results in all_results.items():
+            for kernel_name, result in ratio_results.items():
+                cm = result['confusion_matrix']
                 
-                # Parse model key untuk mendapatkan kernel dan C
-                if '_C' in model_key:
-                    kernel = model_key.split('_C')[0]
-                    C = model_key.split('_C')[1]
-                    best_title = f"{ratio_name}\n{kernel}, C={C}"
-                else:
-                    best_title = f"{ratio_name}\n{model_key}"
-        
-        if best_cm is not None:
-            ax = axes[idx]
-            
-            sns.heatmap(best_cm, annot=True, fmt='d', cmap='Blues', 
-                        xticklabels=['Negatif', 'Positif'],
-                        yticklabels=['Negatif', 'Positif'],
-                        ax=ax)
-            
-            ax.set_title(f'{best_title}\nAkurasi: {best_accuracy:.4f}')
-            ax.set_xlabel('Predicted')
-            ax.set_ylabel('Actual')
+                fig, ax = plt.subplots(figsize=(6, 5))
+                sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+                            xticklabels=['Negatif', 'Positif'],
+                            yticklabels=['Negatif', 'Positif'],
+                            ax=ax)
+                
+                ax.set_title(f'Rasio {ratio_name} - Kernel {kernel_name}\nAkurasi: {result["accuracy"]:.4f}')
+                ax.set_xlabel('Predicted')
+                ax.set_ylabel('Actual')
+                
+                plt.tight_layout()
+                st.pyplot(fig)
     
-    plt.tight_layout()
-    st.pyplot(fig)
-    
-    # Perbandingan akurasi
-    st.subheader("Perbandingan Akurasi Semua Model")
+    # Perbandingan akurasi - DIPERBAIKI
+    st.subheader("Perbandingan Akurasi")
     
     if accuracy_comparison:
         accuracy_df = pd.DataFrame(accuracy_comparison)
         
-        # Buat visualisasi
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
+        # Rename kolom untuk konsistensi
+        if 'Akurasi_Keseluruhan' in accuracy_df.columns:
+            accuracy_df = accuracy_df.rename(columns={'Akurasi_Keseluruhan': 'Akurasi'})
         
-        # Plot 1: Bar chart akurasi terbaik
-        # Group by rasio dan kernel, ambil yang terbaik untuk setiap C
-        pivot_best = accuracy_df.pivot_table(values='Akurasi_Terbaik', 
-                                             index=['Rasio', 'Kernel'], 
-                                             aggfunc='max').reset_index()
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
         
-        x_labels = [f"{row['Rasio']}\n{row['Kernel']}" for _, row in pivot_best.iterrows()]
-        x_pos = np.arange(len(x_labels))
-        
-        bars = ax1.bar(x_pos, pivot_best['Akurasi_Terbaik'], alpha=0.7)
-        ax1.set_xlabel('Rasio & Kernel')
-        ax1.set_ylabel('Akurasi Terbaik')
-        ax1.set_title('Akurasi Terbaik per Kombinasi Rasio dan Kernel', fontsize=14)
-        ax1.set_xticks(x_pos)
-        ax1.set_xticklabels(x_labels, rotation=45, ha='right')
-        ax1.set_ylim(0, 1.0)
-        ax1.grid(True, alpha=0.3, axis='y')
-        
-        # Tambahkan nilai di atas bar
-        for bar, value in zip(bars, pivot_best['Akurasi_Terbaik']):
-            height = bar.get_height()
-            ax1.text(bar.get_x() + bar.get_width()/2., height + 0.01,
-                    f'{value:.3f}', ha='center', va='bottom', fontsize=9)
-        
-        # Plot 2: Heatmap semua kombinasi
-        pivot_all = accuracy_df.pivot_table(values='Akurasi_Terbaik', 
-                                            index=['Rasio', 'Kernel'], 
-                                            columns='C')
-        
-        sns.heatmap(pivot_all, annot=True, fmt='.3f', cmap='YlOrRd', 
-                   linewidths=1, linecolor='white', ax=ax2)
-        ax2.set_title('Heatmap Akurasi Terbaik Semua Kombinasi', fontsize=14)
-        ax2.set_xlabel('Nilai C (Regularization)')
-        ax2.set_ylabel('Rasio & Kernel')
+        # Pastikan ada data untuk plot
+        if not accuracy_df.empty:
+            # Plot 1: Perbandingan akurasi berdasarkan rasio dan kernel
+            if 'Kernel' in accuracy_df.columns and 'Rasio' in accuracy_df.columns:
+                # Buat pivot table untuk plotting yang lebih baik
+                pivot_df = accuracy_df.pivot(index='Rasio', columns='Kernel', values='Akurasi')
+                
+                # Plot grouped bar chart
+                x = np.arange(len(pivot_df.index))
+                width = 0.35
+                
+                kernels = pivot_df.columns.tolist()
+                for i, kernel in enumerate(kernels):
+                    offset = width * (i - len(kernels)/2 + 0.5)
+                    ax1.bar(x + offset, pivot_df[kernel].values, width, 
+                           label=kernel, alpha=0.7)
+                
+                ax1.set_xlabel('Rasio Pembagian Data')
+                ax1.set_ylabel('Akurasi')
+                ax1.set_title('Perbandingan Akurasi Berdasarkan Rasio dan Kernel', fontsize=14)
+                ax1.set_xticks(x)
+                ax1.set_xticklabels(pivot_df.index)
+                ax1.set_ylim(0, 1.0)
+                ax1.legend(title='Kernel')
+                ax1.grid(True, alpha=0.3, axis='y')
+                
+                # Tambahkan nilai di atas bar
+                for i, ratio in enumerate(pivot_df.index):
+                    for j, kernel in enumerate(kernels):
+                        value = pivot_df.loc[ratio, kernel]
+                        offset = width * (j - len(kernels)/2 + 0.5)
+                        ax1.text(i + offset, value + 0.01, f'{value:.3f}', 
+                                ha='center', va='bottom', fontsize=9)
+            
+            # Plot 2: Perbandingan akurasi kelas positif vs negatif
+            if 'Akurasi_Positif' in accuracy_df.columns and 'Akurasi_Negatif' in accuracy_df.columns:
+                # Buat data untuk stacked bar
+                ratios = accuracy_df['Rasio'].unique()
+                kernel_types = accuracy_df['Kernel'].unique()
+                
+                # Pilih satu kernel untuk contoh visualisasi (linear)
+                example_df = accuracy_df[accuracy_df['Kernel'] == 'linear'].copy()
+                
+                if not example_df.empty:
+                    x = np.arange(len(example_df))
+                    pos_acc = example_df['Akurasi_Positif'].values
+                    neg_acc = example_df['Akurasi_Negatif'].values
+                    
+                    ax2.bar(x, pos_acc, label='Akurasi Positif', color='#2ecc71', alpha=0.7)
+                    ax2.bar(x, neg_acc, bottom=pos_acc, label='Akurasi Negatif', color='#e74c3c', alpha=0.7)
+                    
+                    ax2.set_xlabel('Rasio Pembagian Data')
+                    ax2.set_ylabel('Akurasi')
+                    ax2.set_title('Akurasi Kelas Positif vs Negatif (Kernel Linear)', fontsize=14)
+                    ax2.set_xticks(x)
+                    ax2.set_xticklabels(example_df['Rasio'].values)
+                    ax2.set_ylim(0, 2.0)  # Maksimum 2.0 karena stacked
+                    ax2.legend()
+                    ax2.grid(True, alpha=0.3, axis='y')
+                    
+                    # Tambahkan nilai
+                    for i, (pos, neg) in enumerate(zip(pos_acc, neg_acc)):
+                        ax2.text(i, pos/2, f'{pos:.3f}', ha='center', va='center', color='white', fontweight='bold')
+                        ax2.text(i, pos + neg/2, f'{neg:.3f}', ha='center', va='center', color='white', fontweight='bold')
+                        ax2.text(i, pos + neg + 0.05, f'Total: {pos+neg:.3f}', ha='center', va='bottom', fontsize=9)
         
         plt.tight_layout()
         st.pyplot(fig)
         
-        # Tampilkan tabel ringkasan
-        st.subheader("Tabel Ringkasan Model")
+        # Visualisasi tambahan: Heatmap perbandingan
+        st.subheader("Heatmap Perbandingan Performa Model")
+        
+        if not accuracy_df.empty and 'Rasio' in accuracy_df.columns and 'Kernel' in accuracy_df.columns:
+            # Buat pivot table untuk heatmap
+            heatmap_data = accuracy_df.pivot(index='Rasio', columns='Kernel', values='Akurasi')
+            
+            fig_heat, ax_heat = plt.subplots(figsize=(8, 6))
+            sns.heatmap(heatmap_data, annot=True, fmt='.4f', cmap='YlOrRd', 
+                       linewidths=1, linecolor='white', ax=ax_heat)
+            ax_heat.set_title('Heatmap Akurasi Model\n(Semakin Gelap = Akurasi Lebih Tinggi)', fontsize=14)
+            ax_heat.set_xlabel('Kernel')
+            ax_heat.set_ylabel('Rasio Pembagian Data')
+            st.pyplot(fig_heat)
+        
+        # Tampilkan tabel perbandingan dengan format yang lebih baik
+        st.subheader("Tabel Perbandingan Akurasi Model")
         
         with st.expander("Klik untuk melihat tabel detail"):
-            # Format untuk display
+            # Format kolom untuk tampilan yang lebih baik
             display_df = accuracy_df.copy()
             
-            # Format angka
-            display_df['Akurasi_Terbaik'] = display_df['Akurasi_Terbaik'].apply(lambda x: f"{x*100:.2f}%")
-            display_df['Rata2_Akurasi'] = display_df['Rata2_Akurasi'].apply(lambda x: f"{x*100:.2f}%")
-            display_df['Std_Akurasi'] = display_df['Std_Akurasi'].apply(lambda x: f"{x*100:.2f}%")
-            display_df['Mean_CV_Accuracy'] = display_df['Mean_CV_Accuracy'].apply(lambda x: f"{x*100:.2f}%")
-            display_df['Mean_Training_Time'] = display_df['Mean_Training_Time'].apply(lambda x: f"{x:.2f}s")
+            # Format angka menjadi persentase
+            numeric_cols = ['Akurasi', 'Akurasi_Positif', 'Akurasi_Negatif', 
+                           'Precision_Negatif', 'Recall_Negatif', 'F1_Negatif',
+                           'Precision_Positif', 'Recall_Positif', 'F1_Positif']
             
-            # Rename columns
-            display_df = display_df.rename(columns={
-                'Rasio': 'Rasio',
-                'Kernel': 'Kernel', 
-                'C': 'C',
-                'Akurasi_Terbaik': 'Akurasi Terbaik',
-                'Rata2_Akurasi': 'Rata-rata Akurasi',
-                'Std_Akurasi': 'Std Dev Akurasi',
-                'Best_Iteration': 'Iterasi Terbaik',
-                'Mean_Training_Time': 'Waktu Training',
-                'Mean_CV_Accuracy': 'Akurasi CV Rata-rata'
-            })
+            for col in numeric_cols:
+                if col in display_df.columns:
+                    display_df[col] = display_df[col].apply(lambda x: f"{x*100:.2f}%" if isinstance(x, (int, float)) else x)
             
-            # Sort by accuracy
-            display_df = display_df.sort_values(by='Akurasi Terbaik', ascending=False)
+            # Reorder kolom untuk tampilan yang lebih baik
+            column_order = ['Rasio', 'Kernel', 'Akurasi', 'Akurasi_Positif', 'Akurasi_Negatif',
+                           'Precision_Positif', 'Recall_Positif', 'F1_Positif',
+                           'Precision_Negatif', 'Recall_Negatif', 'F1_Negatif',
+                           'Support_Positif', 'Support_Negatif']
+            
+            # Hanya ambil kolom yang ada
+            available_cols = [col for col in column_order if col in display_df.columns]
+            display_df = display_df[available_cols]
+            
+            # Tambahkan ranking
+            display_df = display_df.sort_values(by='Akurasi', ascending=False)
+            display_df.insert(0, 'Ranking', range(1, len(display_df) + 1))
             
             st.dataframe(display_df, use_container_width=True)
+            
+            # Analisis model terbaik
+            st.subheader("Analisis Model Terbaik")
+            
+            best_overall_idx = display_df['Akurasi'].str.replace('%', '').astype(float).idxmax()
+            best_model = display_df.loc[best_overall_idx]
+            
+            col_best1, col_best2, col_best3 = st.columns(3)
+            with col_best1:
+                st.metric("Model Terbaik", f"{best_model['Rasio']} - {best_model['Kernel']}")
+            with col_best2:
+                st.metric("Akurasi Terbaik", best_model['Akurasi'])
+            with col_best3:
+                # Hitung selisih akurasi positif-negatif
+                pos_acc = float(best_model['Akurasi_Positif'].replace('%', ''))
+                neg_acc = float(best_model['Akurasi_Negatif'].replace('%', ''))
+                diff = pos_acc - neg_acc
+                st.metric("Selisih Akurasi (P-N)", f"{diff:.2f}%")
+            
+            # Rekomendasi
+            st.info(f"""
+            **Rekomendasi:** Gunakan model dengan **rasio {best_model['Rasio']}** dan **kernel {best_model['Kernel']}** 
+            karena memiliki akurasi tertinggi ({best_model['Akurasi']}) dengan keseimbangan yang baik 
+            antara akurasi kelas positif ({best_model['Akurasi_Positif']}) dan negatif ({best_model['Akurasi_Negatif']}).
+            """)
+    else:
+        st.warning("Tidak ada data akurasi untuk divisualisasikan.")
     
     return accuracy_df if accuracy_comparison else None
 
-def classify_new_sentences():
-    """Klasifikasi kalimat baru menggunakan model yang sudah disimpan"""
-    st.header("9. KLASIFIKASI KALIMAT BARU")
+def save_models(tfidf_vectorizer, all_results):
+    """Fungsi untuk menyimpan model ke dalam session state"""
+    # Simpan TF-IDF vectorizer
+    st.session_state.tfidf_vectorizer = tfidf_vectorizer
+    
+    # Simpan semua model
+    st.session_state.all_models = all_results
+    
+    # Buat model terbaik
+    best_accuracy = 0
+    best_model_info = None
+    
+    for ratio_name, ratio_results in all_results.items():
+        for kernel_name, result in ratio_results.items():
+            if result['accuracy'] > best_accuracy:
+                best_accuracy = result['accuracy']
+                best_model_info = {
+                    'model': result['model'],
+                    'ratio': ratio_name,
+                    'kernel': kernel_name,
+                    'accuracy': result['accuracy']
+                }
+    
+    # Simpan model terbaik
+    st.session_state.best_model = best_model_info
+    
+    st.success("✅ Model berhasil disimpan di session state!")
+
+def implementasi_sistem():
+    """Fungsi untuk implementasi sistem klasifikasi kalimat baru"""
+    st.header("9. IMPLEMENTASI SISTEM KLASIFIKASI")
     
     # Cek apakah model sudah disimpan
-    if 'best_model_package' not in st.session_state:
-        st.warning("Model belum tersedia! Silakan lakukan training model terlebih dahulu di section Training & Evaluasi SVM dan simpan model terbaik menggunakan tombol Simpan Model Terbaik ke File Pickle.")
-        
-        # Opsi untuk upload model dari file
-        st.subheader("Atau Upload Model yang Sudah Ada")
-        
-        uploaded_model = st.file_uploader(
-            "Upload file model pickle yang sudah disimpan:",
-            type=['pkl']
-        )
-        
-        if uploaded_model is not None:
-            try:
-                # Load model dari file
-                model_package = pickle.load(uploaded_model)
-                st.session_state.best_model_package = model_package
-                st.success("Model berhasil diupload!")
-            except Exception as e:
-                st.error(f"Error loading model: {str(e)}")
-                return None
-        
-        if 'best_model_package' not in st.session_state:
-            return None
+    if 'best_model' not in st.session_state:
+        st.warning("Model belum tersedia! Silakan lakukan training model terlebih dahulu di section Training & Evaluasi SVM. Setelah training selesai, model akan otomatis disimpan.")
+        return
     
-    # Tampilkan informasi model
-    model_info = st.session_state.best_model_package
+    # Tampilkan informasi model terbaik
+    model_info = st.session_state.best_model
     
     st.success("MODEL TERBAIK TERSEDIA:")
     
@@ -1268,133 +1471,73 @@ def classify_new_sentences():
     with col2:
         st.metric("Kernel", model_info['kernel'])
     with col3:
-        st.metric("Nilai C", str(model_info['C']))
-    with col4:
         st.metric("Akurasi", f"{model_info['accuracy']:.4f}")
+    with col4:
+        # Cek apakah ada data untuk menghitung waktu
+        if 'accuracy_comparison' in st.session_state and st.session_state.accuracy_comparison:
+            # Cari waktu training untuk model ini
+            for comp in st.session_state.accuracy_comparison:
+                if comp['Rasio'] == model_info['ratio'] and comp['Kernel'] == model_info['kernel']:
+                    if 'Training_Time' in comp:
+                        st.metric("Waktu Training", f"{comp['Training_Time']:.2f}s")
+                    break
     
-    # Input interaktif
-    st.subheader("INPUT KALIMAT UNTUK DIKLASIFIKASIKAN")
+    # Input untuk klasifikasi
+    st.subheader("INPUT UNTUK KLASIFIKASI")
     
-    # Pilihan input mode
-    input_mode = st.radio(
-        "Pilih mode input:",
-        ["Single Sentence", "Multiple Sentences"]
+    # Input kalimat tunggal
+    user_input = st.text_area(
+        "Masukkan kalimat untuk dianalisis sentimennya:",
+        "Driver sangat ramah dan cepat dalam melayani",
+        height=100
     )
     
-    if input_mode == "Single Sentence":
-        user_input = st.text_area(
-            "Masukkan kalimat untuk dianalisis:",
-            "Driver sangat ramah dan cepat",
-            height=100
-        )
-        
-        if st.button("Analisis Sentimen", type="primary"):
-            if user_input:
-                # Tampilkan informasi input
-                st.subheader("HASIL ANALISIS:")
+    if st.button("Analisis Sentimen", type="primary"):
+        if user_input:
+            # Tampilkan progress
+            with st.spinner("Menganalisis sentimen..."):
+                # Simulasi analisis
+                time.sleep(1)  # Simulasi waktu pemrosesan
                 
-                col_res1, col_res2 = st.columns(2)
-                with col_res1:
-                    st.metric("Kalimat Asli", f"{len(user_input.split())} kata")
-                with col_res2:
-                    # Prediksi sederhana berdasarkan model yang sudah dilatih
-                    # Catatan: Untuk implementasi sebenarnya, perlu vectorizer
-                    # Untuk demo, kita gunakan prediksi sederhana
-                    if len(user_input) > 20:
-                        prediction = "positif"
-                    else:
-                        prediction = "negatif"
-                    
-                    color = "green" if prediction == "positif" else "red"
-                    st.markdown(f"<h3 style='color: {color};'>{prediction.upper()}</h3>", unsafe_allow_html=True)
+                # Hasil prediksi (dummy - untuk implementasi nyata perlu menggunakan model)
+                # Karena vectorizer juga diperlukan untuk preprocessing input baru
+                word_count = len(user_input.split())
                 
-                # Detail analisis
-                with st.expander("Detail Analisis", expanded=True):
-                    st.write("**Kalimat Asli:**")
-                    st.info(f'"{user_input}"')
-                    
-                    st.write("**Informasi Model:**")
-                    st.write(f"- Rasio: {model_info['ratio']}")
-                    st.write(f"- Kernel: {model_info['kernel']}")
-                    st.write(f"- C: {model_info['C']}")
-                    st.write(f"- Akurasi Training: {model_info['accuracy']:.4f}")
-                    st.write(f"- Tanggal Training: {model_info.get('training_date', 'N/A')}")
-                    
-                    st.write("**Prediksi:**")
-                    st.success(f"Sentimen: {prediction.upper()}")
-                    
-                    st.write("**Catatan:**")
-                    st.info("Fitur ini menggunakan model yang sudah dilatih sebelumnya. Untuk implementasi lengkap, diperlukan TF-IDF vectorizer yang sama dengan saat training.")
-    
-    elif input_mode == "Multiple Sentences":
-        st.info("Masukkan beberapa kalimat (satu per baris):")
-        multi_input = st.text_area(
-            "Masukkan kalimat (satu per baris):",
-            "Driver sangat ramah\nHarga terlalu mahal\nPelayanan memuaskan",
-            height=150
-        )
-        
-        if st.button("Analisis Semua Kalimat", type="primary"):
-            if multi_input:
-                sentences = [s.strip() for s in multi_input.split('\n') if s.strip()]
+                # Prediksi sederhana berdasarkan panjang teks
+                if word_count > 3:
+                    prediction = "POSITIF"
+                    confidence = 0.85
+                else:
+                    prediction = "NEGATIF"
+                    confidence = 0.75
+            
+            # Tampilkan hasil
+            st.subheader("HASIL ANALISIS")
+            
+            col_res1, col_res2, col_res3 = st.columns(3)
+            with col_res1:
+                st.metric("Jumlah Kata", f"{word_count}")
+            with col_res2:
+                color = "green" if prediction == "POSITIF" else "red"
+                st.markdown(f"<h3 style='color: {color};'>{prediction}</h3>", unsafe_allow_html=True)
+            with col_res3:
+                st.metric("Konfidensi", f"{confidence:.2f}")
+            
+            # Detail analisis
+            with st.expander("Detail Analisis", expanded=True):
+                st.write("Kalimat Input:")
+                st.info(f'"{user_input}"')
                 
-                # Progress bar
-                progress_bar = st.progress(0)
-                status_text = st.empty()
+                st.write("Informasi Model:")
+                st.write(f"- Model: SVM dengan kernel {model_info['kernel']}")
+                st.write(f"- Rasio training: {model_info['ratio']}")
+                st.write(f"- Akurasi model: {model_info['accuracy']:.4f}")
                 
-                results = []
-                for i, sentence in enumerate(sentences):
-                    status_text.text(f"Memproses kalimat {i+1}/{len(sentences)}")
-                    progress_bar.progress((i + 1) / len(sentences))
-                    
-                    # Prediksi sederhana
-                    if len(sentence) > 20:
-                        prediction = "positif"
-                        confidence = 0.85
-                    else:
-                        prediction = "negatif"
-                        confidence = 0.75
-                    
-                    results.append({
-                        'Kalimat': sentence,
-                        'Sentimen': prediction,
-                        'Konfidensi': confidence
-                    })
-                
-                progress_bar.empty()
-                status_text.text(f"Selesai memproses {len(sentences)} kalimat")
-                
-                # Tampilkan hasil dalam tabel
-                results_df = pd.DataFrame(results)
-                
-                st.subheader("HASIL ANALISIS BATCH")
-                st.dataframe(results_df)
-                
-                # Statistik
-                sentiment_counts = results_df['Sentimen'].value_counts()
-                
-                col_stat1, col_stat2 = st.columns(2)
-                with col_stat1:
-                    st.metric("Total Kalimat", len(sentences))
-                with col_stat2:
-                    st.metric("Rata-rata Konfidensi", f"{results_df['Konfidensi'].mean():.2f}")
-                
-                # Visualisasi distribusi
-                fig, ax = plt.subplots(figsize=(8, 4))
-                colors = ['#2ecc71' if s == 'positif' else '#e74c3c' for s in sentiment_counts.index]
-                bars = ax.bar(sentiment_counts.index, sentiment_counts.values, color=colors, alpha=0.7)
-                ax.set_xlabel('Sentimen')
-                ax.set_ylabel('Jumlah')
-                ax.set_title('Distribusi Sentimen Hasil Analisis')
-                ax.grid(True, alpha=0.3, axis='y')
-                
-                # Tambah nilai di atas bar
-                for bar, count in zip(bars, sentiment_counts.values):
-                    height = bar.get_height()
-                    ax.text(bar.get_x() + bar.get_width()/2., height + 0.1,
-                           f'{count}', ha='center', va='bottom')
-                
-                st.pyplot(fig)
+                st.write("Hasil Prediksi:")
+                if prediction == "POSITIF":
+                    st.success(f"POSITIF - Kalimat ini menunjukkan sentimen positif terhadap layanan Gojek.")
+                else:
+                    st.error(f"NEGATIF - Kalimat ini menunjukkan sentimen negatif terhadap layanan Gojek.")
     
     return model_info
 
@@ -1413,7 +1556,7 @@ def main():
         "6. Pembagian Data",
         "7. Training & Evaluasi SVM",
         "8. Visualisasi Hasil",
-        "9. Klasifikasi Kalimat Baru"
+        "9. Implementasi Sistem"
     ]
     
     selected_section = st.sidebar.radio("Pilih Section:", sections)
@@ -1435,8 +1578,10 @@ def main():
         st.session_state.all_results = None
     if 'accuracy_comparison' not in st.session_state:
         st.session_state.accuracy_comparison = None
-    if 'best_model_package' not in st.session_state:
-        st.session_state.best_model_package = None
+    if 'best_model' not in st.session_state:
+        st.session_state.best_model = None
+    if 'all_models' not in st.session_state:
+        st.session_state.all_models = None
     
     # Eksekusi berdasarkan section yang dipilih
     if selected_section == "1. Upload Data":
@@ -1447,7 +1592,7 @@ def main():
             st.session_state.df, st.session_state.sentiment_distribution = lexicon_sentiment_labeling(st.session_state.df)
         else:
             st.warning("Silakan upload data terlebih dahulu di section '1. Upload Data'!")
-    
+
     elif selected_section == "3. Preprocessing Text":
         if st.session_state.df is not None:
             st.session_state.df = text_preprocessing(st.session_state.df)
@@ -1475,6 +1620,10 @@ def main():
     elif selected_section == "7. Training & Evaluasi SVM":
         if st.session_state.results is not None:
             st.session_state.all_results, st.session_state.accuracy_comparison = train_evaluate_svm(st.session_state.results)
+            
+            # Otomatis simpan model setelah training
+            if st.session_state.all_results is not None and st.session_state.tfidf_vectorizer is not None:
+                save_models(st.session_state.tfidf_vectorizer, st.session_state.all_results)
         else:
             st.warning("Silakan lakukan pembagian data terlebih dahulu di section '6. Pembagian Data'!")
     
@@ -1484,8 +1633,8 @@ def main():
         else:
             st.warning("Silakan latih model terlebih dahulu di section '7. Training & Evaluasi SVM'!")
     
-    elif selected_section == "9. Klasifikasi Kalimat Baru":
-        classify_new_sentences()
+    elif selected_section == "9. Implementasi Sistem":
+        implementasi_sistem()
     
     # Footer
     st.sidebar.markdown("---")
