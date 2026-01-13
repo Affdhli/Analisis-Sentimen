@@ -1451,13 +1451,18 @@ def save_models(tfidf_vectorizer, all_results):
     
     st.success("✅ Model berhasil disimpan di session state!")
 
+import pickle
+import numpy as np
+import streamlit as st
+import time
+
 def implementasi_sistem():
     """Fungsi untuk implementasi sistem klasifikasi kalimat baru"""
     st.header("9. IMPLEMENTASI SISTEM KLASIFIKASI")
     
-    # Cek apakah model sudah disimpan
-    if 'best_model' not in st.session_state:
-        st.warning("Model belum tersedia! Silakan lakukan training model terlebih dahulu di section Training & Evaluasi SVM. Setelah training selesai, model akan otomatis disimpan.")
+    # Cek apakah model dan vectorizer sudah disimpan
+    if 'best_model' not in st.session_state or 'tfidf_vectorizer' not in st.session_state:
+        st.warning("Model atau vectorizer belum tersedia! Silakan lakukan training model terlebih dahulu di section Training & Evaluasi SVM. Setelah training selesai, model akan otomatis disimpan.")
         return
     
     # Tampilkan informasi model terbaik
@@ -1485,61 +1490,310 @@ def implementasi_sistem():
     # Input untuk klasifikasi
     st.subheader("INPUT UNTUK KLASIFIKASI")
     
-    # Input kalimat tunggal
-    user_input = st.text_area(
-        "Masukkan kalimat untuk dianalisis sentimennya:",
-        "Driver sangat ramah dan cepat dalam melayani",
-        height=100
-    )
+    # Pilihan: Input manual atau upload file
+    tab1, tab2 = st.tabs(["📝 Input Manual", "📁 Upload File"])
     
-    if st.button("Analisis Sentimen", type="primary"):
-        if user_input:
-            # Tampilkan progress
-            with st.spinner("Menganalisis sentimen..."):
-                # Simulasi analisis
-                time.sleep(1)  # Simulasi waktu pemrosesan
+    with tab1:
+        # Input kalimat tunggal
+        user_input = st.text_area(
+            "Masukkan kalimat untuk dianalisis sentimennya:",
+            "Driver sangat ramah dan cepat dalam melayani",
+            height=100
+        )
+        
+        if st.button("Analisis Sentimen", type="primary", key="analyze_manual"):
+            if user_input:
+                _analisis_sentimen(user_input, model_info)
+    
+    with tab2:
+        uploaded_file = st.file_uploader(
+            "Upload file teks (txt) berisi beberapa kalimat", 
+            type=['txt']
+        )
+        
+        if uploaded_file is not None:
+            # Baca file
+            text_content = uploaded_file.read().decode("utf-8")
+            sentences = [s.strip() for s in text_content.split('\n') if s.strip()]
+            
+            if sentences:
+                st.write(f"✅ Ditemukan {len(sentences)} kalimat untuk dianalisis")
                 
-                # Hasil prediksi (dummy - untuk implementasi nyata perlu menggunakan model)
-                # Karena vectorizer juga diperlukan untuk preprocessing input baru
-                word_count = len(user_input.split())
-                
-                # Prediksi sederhana berdasarkan panjang teks
-                if word_count > 3:
-                    prediction = "POSITIF"
-                    confidence = 0.85
+                if st.button("Analisis Semua Kalimat", type="primary", key="analyze_file"):
+                    results = []
+                    progress_bar = st.progress(0)
+                    
+                    for i, sentence in enumerate(sentences):
+                        with st.spinner(f"Menganalisis kalimat {i+1}/{len(sentences)}..."):
+                            result = _analisis_sentimen_batch(sentence, model_info)
+                            results.append(result)
+                            progress_bar.progress((i + 1) / len(sentences))
+                    
+                    # Tampilkan ringkasan hasil
+                    _tampilkan_ringkasan_hasil(results)
+    
+    # Tombol untuk menyimpan model ke file pickle
+    st.divider()
+    st.subheader("💾 Ekspor Model")
+    
+    col_exp1, col_exp2 = st.columns(2)
+    with col_exp1:
+        if st.button("Simpan Model ke File", key="save_model"):
+            _simpan_model_ke_file(model_info)
+    
+    with col_exp2:
+        if st.button("Muat Model dari File", key="load_model"):
+            _muat_model_dari_file()
+
+def _analisis_sentimen(kalimat, model_info):
+    """Fungsi untuk menganalisis sentimen satu kalimat"""
+    with st.spinner("Menganalisis sentimen..."):
+        try:
+            # Dapatkan model dan vectorizer dari session state
+            model = st.session_state.model_obj
+            vectorizer = st.session_state.tfidf_vectorizer
+            
+            # Preprocessing input
+            # 1. Transform teks menjadi vektor TF-IDF
+            teks_vectorized = vectorizer.transform([kalimat])
+            
+            # 2. Lakukan prediksi dengan model
+            prediction = model.predict(teks_vectorized)
+            
+            # 3. Dapatkan probabilitas prediksi (jika model mendukung)
+            if hasattr(model, 'predict_proba'):
+                probabilities = model.predict_proba(teks_vectorized)
+                confidence = np.max(probabilities[0])
+            else:
+                # Untuk model SVM tanpa predict_proba, gunakan decision function
+                if hasattr(model, 'decision_function'):
+                    decision_values = model.decision_function(teks_vectorized)
+                    confidence = 1 / (1 + np.exp(-abs(decision_values[0])))
                 else:
-                    prediction = "NEGATIF"
-                    confidence = 0.75
+                    confidence = 0.8  # Default
+            
+            # Konversi prediksi ke label
+            label_prediksi = "POSITIF" if prediction[0] == 1 else "NEGATIF"
             
             # Tampilkan hasil
-            st.subheader("HASIL ANALISIS")
+            _tampilkan_hasil_analisis(kalimat, label_prediksi, confidence, model_info)
             
-            col_res1, col_res2, col_res3 = st.columns(3)
-            with col_res1:
-                st.metric("Jumlah Kata", f"{word_count}")
-            with col_res2:
-                color = "green" if prediction == "POSITIF" else "red"
-                st.markdown(f"<h3 style='color: {color};'>{prediction}</h3>", unsafe_allow_html=True)
-            with col_res3:
-                st.metric("Konfidensi", f"{confidence:.2f}")
-            
-            # Detail analisis
-            with st.expander("Detail Analisis", expanded=True):
-                st.write("Kalimat Input:")
-                st.info(f'"{user_input}"')
-                
-                st.write("Informasi Model:")
-                st.write(f"- Model: SVM dengan kernel {model_info['kernel']}")
-                st.write(f"- Rasio training: {model_info['ratio']}")
-                st.write(f"- Akurasi model: {model_info['accuracy']:.4f}")
-                
-                st.write("Hasil Prediksi:")
-                if prediction == "POSITIF":
-                    st.success(f"POSITIF - Kalimat ini menunjukkan sentimen positif terhadap layanan Gojek.")
-                else:
-                    st.error(f"NEGATIF - Kalimat ini menunjukkan sentimen negatif terhadap layanan Gojek.")
+        except Exception as e:
+            st.error(f"Terjadi kesalahan dalam analisis: {str(e)}")
+            st.info("Menggunakan fallback analysis...")
+            # Fallback jika ada error
+            _analisis_fallback(kalimat, model_info)
+
+def _analisis_sentimen_batch(kalimat, model_info):
+    """Fungsi untuk menganalisis sentimen dalam batch (tanpa display)"""
+    try:
+        # Dapatkan model dan vectorizer dari session state
+        model = st.session_state.model_obj
+        vectorizer = st.session_state.tfidf_vectorizer
+        
+        # Preprocessing dan prediksi
+        teks_vectorized = vectorizer.transform([kalimat])
+        prediction = model.predict(teks_vectorized)
+        label_prediksi = "POSITIF" if prediction[0] == 1 else "NEGATIF"
+        
+        # Hitung confidence
+        confidence = 0.8
+        if hasattr(model, 'predict_proba'):
+            probabilities = model.predict_proba(teks_vectorized)
+            confidence = np.max(probabilities[0])
+        
+        return {
+            'kalimat': kalimat,
+            'prediksi': label_prediksi,
+            'confidence': confidence,
+            'detail': f"Model: SVM ({model_info['kernel']})"
+        }
+        
+    except Exception as e:
+        return {
+            'kalimat': kalimat,
+            'prediksi': "ERROR",
+            'confidence': 0.0,
+            'detail': f"Error: {str(e)}"
+        }
+
+def _tampilkan_hasil_analisis(kalimat, prediksi, confidence, model_info):
+    """Fungsi untuk menampilkan hasil analisis"""
+    st.subheader("🎯 HASIL ANALISIS")
     
-    return model_info
+    word_count = len(kalimat.split())
+    
+    col_res1, col_res2, col_res3 = st.columns(3)
+    with col_res1:
+        st.metric("Jumlah Kata", f"{word_count}")
+    with col_res2:
+        color = "green" if prediksi == "POSITIF" else "red"
+        st.markdown(f"<h3 style='color: {color};'>{prediksi}</h3>", unsafe_allow_html=True)
+    with col_res3:
+        st.metric("Konfidensi", f"{confidence:.4f}")
+    
+    # Detail analisis
+    with st.expander("📊 Detail Analisis", expanded=True):
+        st.write("**Kalimat Input:**")
+        st.info(f'"{kalimat}"')
+        
+        st.write("**Informasi Model:**")
+        st.write(f"- Model: SVM dengan kernel {model_info['kernel']}")
+        st.write(f"- Rasio training: {model_info['ratio']}")
+        st.write(f"- Akurasi model: {model_info['accuracy']:.4f}")
+        
+        st.write("**Hasil Prediksi:**")
+        if prediksi == "POSITIF":
+            st.success(f"✅ **POSITIF** - Kalimat ini menunjukkan sentimen positif terhadap layanan Gojek (konfidensi: {confidence:.2%}).")
+        else:
+            st.error(f"❌ **NEGATIF** - Kalimat ini menunjukkan sentimen negatif terhadap layanan Gojek (konfidensi: {confidence:.2%}).")
+        
+        # Visualisasi confidence
+        st.write("**Visualisasi Konfidensi:**")
+        progress_value = confidence
+        color = "green" if prediksi == "POSITIF" else "red"
+        st.markdown(f"""
+        <div style="background-color: #f0f0f0; border-radius: 5px; padding: 3px;">
+            <div style="background-color: {color}; width: {progress_value*100}%; 
+                     border-radius: 5px; padding: 5px; text-align: center; color: white;">
+                {confidence:.2%}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+def _tampilkan_ringkasan_hasil(results):
+    """Menampilkan ringkasan hasil analisis batch"""
+    st.subheader("📈 Ringkasan Hasil Analisis")
+    
+    # Hitung statistik
+    total = len(results)
+    positif = sum(1 for r in results if r['prediksi'] == 'POSITIF')
+    negatif = sum(1 for r in results if r['prediksi'] == 'NEGATIF')
+    error = sum(1 for r in results if r['prediksi'] == 'ERROR')
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Total Kalimat", total)
+    with col2:
+        st.metric("Positif", positif)
+    with col3:
+        st.metric("Negatif", negatif)
+    with col4:
+        st.metric("Error", error)
+    
+    # Tampilkan hasil detail dalam tabel
+    st.write("**Detail Hasil:**")
+    import pandas as pd
+    
+    df_results = pd.DataFrame([{
+        'Kalimat': r['kalimat'][:50] + '...' if len(r['kalimat']) > 50 else r['kalimat'],
+        'Prediksi': r['prediksi'],
+        'Konfidensi': f"{r['confidence']:.2%}" if r['confidence'] > 0 else 'N/A',
+        'Status': '✅' if r['prediksi'] != 'ERROR' else '❌'
+    } for r in results])
+    
+    st.dataframe(df_results, use_container_width=True)
+    
+    # Tombol untuk download hasil
+    if st.button("💾 Download Hasil sebagai CSV"):
+        df_download = pd.DataFrame(results)
+        csv = df_download.to_csv(index=False)
+        st.download_button(
+            label="Klik untuk download",
+            data=csv,
+            file_name="hasil_analisis_sentimen.csv",
+            mime="text/csv"
+        )
+
+def _analisis_fallback(kalimat, model_info):
+    """Fallback analysis jika model gagal"""
+    time.sleep(1)  # Simulasi waktu pemrosesan
+    word_count = len(kalimat.split())
+    
+    # Prediksi sederhana berdasarkan panjang teks dan kata kunci
+    positive_keywords = ['baik', 'ramah', 'cepat', 'puas', 'senang', 'mantap', 'bagus']
+    negative_keywords = ['lambat', 'buruk', 'jelek', 'kecewa', 'marah', 'tidak']
+    
+    kalimat_lower = kalimat.lower()
+    positive_score = sum(1 for keyword in positive_keywords if keyword in kalimat_lower)
+    negative_score = sum(1 for keyword in negative_keywords if keyword in kalimat_lower)
+    
+    if positive_score > negative_score:
+        prediction = "POSITIF"
+        confidence = 0.75 + (positive_score * 0.05)
+    else:
+        prediction = "NEGATIF"
+        confidence = 0.70 + (negative_score * 0.05)
+    
+    _tampilkan_hasil_analisis(kalimat, prediction, confidence, model_info)
+
+def _simpan_model_ke_file(model_info):
+    """Menyimpan model dan vectorizer ke file pickle"""
+    try:
+        if 'model_obj' in st.session_state and 'tfidf_vectorizer' in st.session_state:
+            import datetime
+            
+            # Buat dictionary berisi semua komponen
+            model_package = {
+                'model': st.session_state.model_obj,
+                'vectorizer': st.session_state.tfidf_vectorizer,
+                'model_info': model_info,
+                'timestamp': datetime.datetime.now(),
+                'version': '1.0'
+            }
+            
+            # Simpan ke file
+            filename = f"model_sentimen_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl"
+            with open(filename, 'wb') as file:
+                pickle.dump(model_package, file)
+            
+            st.success(f"✅ Model berhasil disimpan ke file: `{filename}`")
+            
+            # Berikan opsi download
+            with open(filename, 'rb') as file:
+                st.download_button(
+                    label="📥 Download File Model",
+                    data=file,
+                    file_name=filename,
+                    mime="application/octet-stream"
+                )
+        else:
+            st.error("Model atau vectorizer tidak tersedia di session state.")
+    except Exception as e:
+        st.error(f"Gagal menyimpan model: {str(e)}")
+
+def _muat_model_dari_file():
+    """Memuat model dari file pickle"""
+    uploaded_model = st.file_uploader(
+        "Upload file model (.pkl)", 
+        type=['pkl'],
+        key="upload_model"
+    )
+    
+    if uploaded_model is not None:
+        try:
+            with st.spinner("Memuat model..."):
+                model_package = pickle.load(uploaded_model)
+                
+                # Simpan ke session state
+                st.session_state.model_obj = model_package['model']
+                st.session_state.tfidf_vectorizer = model_package['vectorizer']
+                st.session_state.best_model = model_package['model_info']
+                
+                st.success("✅ Model berhasil dimuat dari file!")
+                st.info(f"Model informasi: {model_package['model_info']}")
+                
+        except Exception as e:
+            st.error(f"Gagal memuat model: {str(e)}")
+
+# Fungsi untuk menyimpan model setelah training (harus ditambahkan di bagian training)
+def simpan_model_setelah_training(model, vectorizer, model_info):
+    """Fungsi untuk menyimpan model setelah training selesai"""
+    st.session_state.model_obj = model
+    st.session_state.tfidf_vectorizer = vectorizer
+    st.session_state.best_model = model_info
+    
+    st.success("✅ Model berhasil disimpan di session state!")
 
 def main():
     """Fungsi utama"""
