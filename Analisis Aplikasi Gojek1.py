@@ -1423,38 +1423,23 @@ def visualize_results(all_results, accuracy_comparison):
     
     return accuracy_df if accuracy_comparison else None
 
-def save_models(tfidf_vectorizer, all_results):
-    """Fungsi untuk menyimpan model ke dalam session state"""
-    # Simpan TF-IDF vectorizer
-    st.session_state.tfidf_vectorizer = tfidf_vectorizer
-    
-    # Simpan semua model
-    st.session_state.all_models = all_results
-    
-    # Buat model terbaik
-    best_accuracy = 0
-    best_model_info = None
-    
-    for ratio_name, ratio_results in all_results.items():
-        for kernel_name, result in ratio_results.items():
-            if result['accuracy'] > best_accuracy:
-                best_accuracy = result['accuracy']
-                best_model_info = {
-                    'model': result['model'],
-                    'ratio': ratio_name,
-                    'kernel': kernel_name,
-                    'accuracy': result['accuracy']
-                }
-    
-    # Simpan model terbaik
-    st.session_state.best_model = best_model_info
-    
-    st.success("✅ Model berhasil disimpan di session state!")
+from your_module import load_model_from_file
 
-import pickle
-import numpy as np
-import streamlit as st
-import time
+# Muat model terbaru
+model_package = load_model_from_file()
+
+# Atau muat model spesifik
+model_package = load_model_from_file("best_model_20240101_120000.pkl")
+
+# Gunakan untuk prediksi
+if model_package:
+    model = model_package['best_model_info']['model']
+    vectorizer = model_package['tfidf_vectorizer']
+    
+    # Lakukan prediksi
+    text_vectorized = vectorizer.transform([new_text])
+    prediction = model.predict(text_vectorized)
+
 
 def implementasi_sistem():
     """Fungsi untuk implementasi sistem klasifikasi kalimat baru"""
