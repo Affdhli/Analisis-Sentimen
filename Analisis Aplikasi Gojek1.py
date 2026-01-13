@@ -1196,35 +1196,6 @@ def train_evaluate_svm(results):
     
     return all_results, accuracy_comparison
 
-# Setelah training selesai
-from your_module import save_models
-
-# all_results adalah dictionary hasil training
-# tfidf_vectorizer adalah vectorizer yang digunakan
-filename = save_models(tfidf_vectorizer, all_results)
-
-from your_module import load_model_from_file
-
-# Muat model terbaru
-model_package = load_model_from_file()
-
-# Atau muat model spesifik
-model_package = load_model_from_file("best_model_20240101_120000.pkl")
-
-# Gunakan untuk prediksi
-if model_package:
-    model = model_package['best_model_info']['model']
-    vectorizer = model_package['tfidf_vectorizer']
-    
-    # Lakukan prediksi
-    text_vectorized = vectorizer.transform([new_text])
-    prediction = model.predict(text_vectorized)
-
-# Di aplikasi Streamlit Anda
-import your_module
-
-# Tambahkan section manajemen model
-your_module.model_management_ui()
 
 def visualize_results(all_results, accuracy_comparison):
     """Visualisasi hasil"""
@@ -1551,7 +1522,35 @@ def model_management_ui():
                     st.experimental_rerun()
         else:
             st.info("📭 Tidak ada file model yang tersedia untuk dihapus.")
+# Setelah training selesai
+from your_module import save_models
 
+# all_results adalah dictionary hasil training
+# tfidf_vectorizer adalah vectorizer yang digunakan
+filename = save_models(tfidf_vectorizer, all_results)
+
+from your_module import load_model_from_file
+
+# Muat model terbaru
+model_package = load_model_from_file()
+
+# Atau muat model spesifik
+model_package = load_model_from_file("best_model_20240101_120000.pkl")
+
+# Gunakan untuk prediksi
+if model_package:
+    model = model_package['best_model_info']['model']
+    vectorizer = model_package['tfidf_vectorizer']
+    
+    # Lakukan prediksi
+    text_vectorized = vectorizer.transform([new_text])
+    prediction = model.predict(text_vectorized)
+
+# Di aplikasi Streamlit Anda
+import your_module
+
+# Tambahkan section manajemen model
+your_module.model_management_ui()
 
 def implementasi_sistem():
     """Fungsi untuk implementasi sistem klasifikasi kalimat baru"""
