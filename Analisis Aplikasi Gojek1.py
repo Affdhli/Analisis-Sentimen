@@ -1243,7 +1243,8 @@ def visualize_results(all_results, accuracy_comparison):
                                 yticklabels=['Negatif', 'Positif'],
                                 ax=ax)
                     
-                    ax.set_title(f'Rasio {ratio_name} - Kernel {kernel_name}\nAkurasi: {result["accuracy"]:.4f}')
+                    accuracy_value = result["accuracy"]
+                    ax.set_title(f'Rasio {ratio_name} - Kernel {kernel_name}\nAkurasi: {accuracy_value:.4f}')
                     ax.set_xlabel('Predicted')
                     ax.set_ylabel('Actual')
                     
@@ -1267,7 +1268,8 @@ def visualize_results(all_results, accuracy_comparison):
                             yticklabels=['Negatif', 'Positif'],
                             ax=ax)
                 
-                ax.set_title(f'Rasio {ratio_name} - Kernel {kernel_name}\nAkurasi: {result["accuracy"]:.4f}")
+                accuracy_value = result["accuracy"]
+                ax.set_title(f'Rasio {ratio_name} - Kernel {kernel_name}\nAkurasi: {accuracy_value:.4f}')
                 ax.set_xlabel('Predicted')
                 ax.set_ylabel('Actual')
                 
