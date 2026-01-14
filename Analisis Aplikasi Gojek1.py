@@ -650,6 +650,9 @@ def train_evaluate_svm(results):
     st.header("7. TRAINING DAN EVALUASI MODEL SVM")
     st.write("="*60)
     
+    # Import yang diperlukan
+    from sklearn.metrics import ConfusionMatrixDisplay
+    
     # Setup sidebar untuk parameter training
     st.sidebar.subheader("⚙️ Parameter Training SVM")
     
@@ -728,10 +731,9 @@ def train_evaluate_svm(results):
             balanced_accuracy = (recall_neg + recall_pos) / 2
             
             # 5. Class Accuracy yang BENAR (berbeda dari recall)
-            # Ini adalah "accuracy untuk memprediksi kelas tertentu dengan benar"
-            # Bisa dihitung sebagai: (prediksi benar untuk kelas) / (total prediksi kelas)
-            class_acc_neg = TN / (TN + FP + FN + TP) if (TN + FP + FN + TP) > 0 else 0
-            class_acc_pos = TP / (TP + FN + FP + TN) if (TP + FN + FP + TN) > 0 else 0
+            # Accuracy untuk kelas negatif: proporsi prediksi yang benar ketika memprediksi negatif
+            class_acc_neg = TN / (TN + FP) if (TN + FP) > 0 else 0  # Sama dengan specificity
+            class_acc_pos = TP / (TP + FN) if (TP + FN) > 0 else 0  # Sama dengan sensitivity
             
             return {
                 'confusion_matrix': cm,
@@ -806,7 +808,7 @@ def train_evaluate_svm(results):
             progress_bar.progress(progress)
             status_text.text(f"🔄 {message}")
         
-        # Mulai timer - INI YANG PERLU DIPERBAIKI INDENTASINYA
+        # Mulai timer
         start_time = time.time()
         
         # Latih model dengan progress tracking
@@ -925,12 +927,39 @@ def train_evaluate_svm(results):
                 diff = abs(result['neg_accuracy'] - result['classification_report']['negative']['recall'])
                 st.metric("Perbedaan", f"{diff:.4f}", "vs Recall")
             
-            # Tampilkan confusion matrix
+            # Tampilkan confusion matrix - PERBAIKAN DI SINI
             st.subheader("🎯 Confusion Matrix")
             fig_cm, ax = plt.subplots(figsize=(6, 5))
-            cm_display = ConfusionMatrixDisplay(confusion_matrix=result['confusion_matrix'],
-                                              display_labels=['Negative', 'Positive'])
-            cm_display.plot(cmap='Blues', ax=ax, values_format='d')
+            
+            # Cara 1: Menggunakan ConfusionMatrixDisplay
+            try:
+                cm_display = ConfusionMatrixDisplay(
+                    confusion_matrix=result['confusion_matrix'],
+                    display_labels=['Negative', 'Positive']
+                )
+                cm_display.plot(cmap='Blues', ax=ax, values_format='d')
+            except:
+                # Cara 2: Fallback jika ConfusionMatrixDisplay tidak tersedia
+                # Plot manual confusion matrix
+                cm = result['confusion_matrix']
+                ax.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+                ax.set_title('Confusion Matrix')
+                tick_marks = np.arange(2)
+                ax.set_xticks(tick_marks)
+                ax.set_yticks(tick_marks)
+                ax.set_xticklabels(['Negative', 'Positive'])
+                ax.set_yticklabels(['Negative', 'Positive'])
+                
+                # Tambahkan teks
+                thresh = cm.max() / 2.
+                for i in range(cm.shape[0]):
+                    for j in range(cm.shape[1]):
+                        ax.text(j, i, format(cm[i, j], 'd'),
+                               horizontalalignment="center",
+                               color="white" if cm[i, j] > thresh else "black")
+            
+            ax.set_ylabel('True Label')
+            ax.set_xlabel('Predicted Label')
             st.pyplot(fig_cm)
             
             # Tampilkan perbandingan metrik
@@ -1059,9 +1088,35 @@ def train_evaluate_svm(results):
             # Tampilkan confusion matrix
             st.subheader("🎯 Confusion Matrix")
             fig_cm, ax = plt.subplots(figsize=(6, 5))
-            cm_display = ConfusionMatrixDisplay(confusion_matrix=result['confusion_matrix'],
-                                              display_labels=['Negative', 'Positive'])
-            cm_display.plot(cmap='Greens', ax=ax, values_format='d')
+            
+            # Cara 1: Menggunakan ConfusionMatrixDisplay
+            try:
+                cm_display = ConfusionMatrixDisplay(
+                    confusion_matrix=result['confusion_matrix'],
+                    display_labels=['Negative', 'Positive']
+                )
+                cm_display.plot(cmap='Greens', ax=ax, values_format='d')
+            except:
+                # Cara 2: Fallback jika ConfusionMatrixDisplay tidak tersedia
+                cm = result['confusion_matrix']
+                ax.imshow(cm, interpolation='nearest', cmap=plt.cm.Greens)
+                ax.set_title('Confusion Matrix')
+                tick_marks = np.arange(2)
+                ax.set_xticks(tick_marks)
+                ax.set_yticks(tick_marks)
+                ax.set_xticklabels(['Negative', 'Positive'])
+                ax.set_yticklabels(['Negative', 'Positive'])
+                
+                # Tambahkan teks
+                thresh = cm.max() / 2.
+                for i in range(cm.shape[0]):
+                    for j in range(cm.shape[1]):
+                        ax.text(j, i, format(cm[i, j], 'd'),
+                               horizontalalignment="center",
+                               color="white" if cm[i, j] > thresh else "black")
+            
+            ax.set_ylabel('True Label')
+            ax.set_xlabel('Predicted Label')
             st.pyplot(fig_cm)
             
             # Visualisasi training progress
