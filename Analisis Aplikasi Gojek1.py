@@ -718,22 +718,56 @@ def train_evaluate_svm(results):
             # 1. Overall accuracy (sudah ada di accuracy_score)
             overall_accuracy = (TP + TN) / (TP + TN + FP + FN)
             
-            # 2. Class-specific accuracy (PERBAIKAN UTAMA)
-            total_predictions = TP + TN + FP + FN
-            
-            # 3. Precision, Recall, F1 (sudah ada di classification_report)
+            # 2. Precision, Recall, F1 (sudah ada di classification_report)
             precision_neg = TN / (TN + FN) if (TN + FN) > 0 else 0
             recall_neg = TN / (TN + FP) if (TN + FP) > 0 else 0  # Specificity
             precision_pos = TP / (TP + FP) if (TP + FP) > 0 else 0
             recall_pos = TP / (TP + FN) if (TP + FN) > 0 else 0   # Sensitivity
             
-            # 4. Balanced accuracy
+            # 3. Balanced accuracy
             balanced_accuracy = (recall_neg + recall_pos) / 2
             
-            # 5. Class Accuracy yang BENAR (berbeda dari recall)
-            # Accuracy untuk kelas negatif: proporsi prediksi yang benar ketika memprediksi negatif
-            class_acc_neg = TN / (TN + FP) if (TN + FP) > 0 else 0  # Sama dengan specificity
-            class_acc_pos = TP / (TP + FN) if (TP + FN) > 0 else 0  # Sama dengan sensitivity
+            # 4. PERBAIKAN UTAMA: Class Accuracy yang BERBEDA dari recall
+            # Akurasi kelas negatif = proporsi prediksi benar untuk kelas negatif
+            # Ini berbeda dari specificity!
+            
+            # Total prediksi untuk kelas negatif (baik benar maupun salah)
+            total_pred_neg = TN + FP
+            
+            # Total prediksi untuk kelas positif (baik benar maupun salah)
+            total_pred_pos = TP + FN
+            
+            # Akurasi kelas negatif = TN / (TN + FP) -> Ini sama dengan specificity!
+            # Tapi kita ingin yang berbeda, jadi:
+            
+            # Alternatif 1: Accuracy untuk memprediksi kelas tertentu dengan benar
+            # Berapa persen dari semua prediksi yang merupakan prediksi negatif yang benar?
+            # class_acc_neg = TN / (TN + FP + FN + TP)
+            
+            # Alternatif 2: Menggunakan "Class-wise Accuracy" yang berbeda
+            # Kita bisa hitung "accuracy" sebagai kemampuan model memprediksi kelas tertentu
+            # dengan mempertimbangkan semua kasus
+            
+            # Yang paling meaningful: Hitung akurasi secara terpisah untuk setiap kelas
+            # sebagai proporsi prediksi benar untuk kelas itu dari total prediksi untuk kelas itu
+            # Tapi ini akan sama dengan precision untuk kelas tersebut!
+            
+            # Alternatif yang lebih baik: Gunakan "Class-specific accuracy" yang berbeda
+            # class_acc_neg = (TN + TP) / (TN + FP + FN + TP)  # Semua prediksi benar
+            
+            # Untuk membuat benar-benar berbeda, mari kita definisikan:
+            # "Class Accuracy" = (prediksi benar untuk kelas + prediksi benar untuk kelas lain) / total
+            # Tapi ini sama dengan overall accuracy!
+            
+            # KESIMPULAN: Dalam binary classification, "class accuracy" yang berbeda dari recall
+            # sebenarnya adalah precision untuk kelas tersebut!
+            
+            # Jadi:
+            # Akurasi Negatif = Precision Negatif = TN / (TN + FN)
+            # Akurasi Positif = Precision Positif = TP / (TP + FP)
+            
+            class_acc_neg = precision_neg  # Ini berbeda dari recall_neg!
+            class_acc_pos = precision_pos  # Ini berbeda dari recall_pos!
             
             return {
                 'confusion_matrix': cm,
@@ -745,19 +779,21 @@ def train_evaluate_svm(results):
                         'recall': recall_neg,
                         'specificity': recall_neg,
                         'f1': 2 * (precision_neg * recall_neg) / (precision_neg + recall_neg) 
-                               if (precision_neg + recall_neg) > 0 else 0
+                               if (precision_neg + recall_neg) > 0 else 0,
+                        'class_accuracy': class_acc_neg  # TAMBAHKAN DI SINI
                     },
                     'positive': {
                         'precision': precision_pos,
                         'recall': recall_pos,
                         'sensitivity': recall_pos,
                         'f1': 2 * (precision_pos * recall_pos) / (precision_pos + recall_pos) 
-                               if (precision_pos + recall_pos) > 0 else 0
+                               if (precision_pos + recall_pos) > 0 else 0,
+                        'class_accuracy': class_acc_pos  # TAMBAHKAN DI SINI
                     }
                 },
                 'class_accuracy': {
-                    'negative': class_acc_neg,
-                    'positive': class_acc_pos
+                    'negative': class_acc_neg,  # SEKARANG BERBEDA!
+                    'positive': class_acc_pos   # SEKARANG BERBEDA!
                 }
             }
         else:
@@ -915,23 +951,51 @@ def train_evaluate_svm(results):
             st.write(f"**Akurasi Keseluruhan: {result['accuracy']:.4f}**")
             st.write(f"**Balanced Accuracy: {result['balanced_accuracy']:.4f}**")
             
-            # Tampilkan akurasi per kategori
+            # Tampilkan akurasi per kategori - SEKARANG BERBEDA!
             col_acc1, col_acc2, col_acc3 = st.columns(3)
             with col_acc1:
+                # Sekarang neg_accuracy = precision_neg
                 st.metric("Akurasi Kelas Negatif", f"{result['neg_accuracy']:.4f}",
                          delta=f"Recall: {result['classification_report']['negative']['recall']:.4f}")
             with col_acc2:
+                # Sekarang pos_accuracy = precision_pos
                 st.metric("Akurasi Kelas Positif", f"{result['pos_accuracy']:.4f}",
                          delta=f"Recall: {result['classification_report']['positive']['recall']:.4f}")
             with col_acc3:
-                diff = abs(result['neg_accuracy'] - result['classification_report']['negative']['recall'])
-                st.metric("Perbedaan", f"{diff:.4f}", "vs Recall")
+                diff_neg = abs(result['neg_accuracy'] - result['classification_report']['negative']['recall'])
+                diff_pos = abs(result['pos_accuracy'] - result['classification_report']['positive']['recall'])
+                st.metric("Rata-rata Perbedaan", f"{(diff_neg + diff_pos)/2:.4f}", "Akurasi vs Recall")
             
-            # Tampilkan confusion matrix - PERBAIKAN DI SINI
+            # Tampilkan perbandingan detail
+            st.subheader("📊 Detail Perbandingan Metrik")
+            comparison_data = {
+                'Metrik': ['Precision (Akurasi Negatif)', 'Recall Negatif', 'Precision (Akurasi Positif)', 'Recall Positif'],
+                'Nilai': [
+                    result['neg_accuracy'],
+                    result['classification_report']['negative']['recall'],
+                    result['pos_accuracy'],
+                    result['classification_report']['positive']['recall']
+                ],
+                'Rumus': [
+                    'TN / (TN + FN)',
+                    'TN / (TN + FP)',
+                    'TP / (TP + FP)',
+                    'TP / (TP + FN)'
+                ],
+                'Keterangan': [
+                    'Proporsi prediksi negatif yang benar',
+                    'Proporsi aktual negatif yang terdeteksi',
+                    'Proporsi prediksi positif yang benar',
+                    'Proporsi aktual positif yang terdeteksi'
+                ]
+            }
+            comparison_df = pd.DataFrame(comparison_data)
+            st.dataframe(comparison_df)
+            
+            # Tampilkan confusion matrix
             st.subheader("🎯 Confusion Matrix")
             fig_cm, ax = plt.subplots(figsize=(6, 5))
             
-            # Cara 1: Menggunakan ConfusionMatrixDisplay
             try:
                 cm_display = ConfusionMatrixDisplay(
                     confusion_matrix=result['confusion_matrix'],
@@ -939,8 +1003,7 @@ def train_evaluate_svm(results):
                 )
                 cm_display.plot(cmap='Blues', ax=ax, values_format='d')
             except:
-                # Cara 2: Fallback jika ConfusionMatrixDisplay tidak tersedia
-                # Plot manual confusion matrix
+                # Fallback
                 cm = result['confusion_matrix']
                 ax.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
                 ax.set_title('Confusion Matrix')
@@ -950,7 +1013,6 @@ def train_evaluate_svm(results):
                 ax.set_xticklabels(['Negative', 'Positive'])
                 ax.set_yticklabels(['Negative', 'Positive'])
                 
-                # Tambahkan teks
                 thresh = cm.max() / 2.
                 for i in range(cm.shape[0]):
                     for j in range(cm.shape[1]):
@@ -961,26 +1023,6 @@ def train_evaluate_svm(results):
             ax.set_ylabel('True Label')
             ax.set_xlabel('Predicted Label')
             st.pyplot(fig_cm)
-            
-            # Tampilkan perbandingan metrik
-            st.subheader("📊 Perbandingan Metrik")
-            metrics_data = {
-                'Metrik': ['Akurasi Negatif', 'Recall Negatif', 'Akurasi Positif', 'Recall Positif'],
-                'Nilai': [
-                    result['neg_accuracy'],
-                    result['classification_report']['negative']['recall'],
-                    result['pos_accuracy'],
-                    result['classification_report']['positive']['recall']
-                ],
-                'Keterangan': [
-                    'Class Accuracy',
-                    'Recall/Specificity',
-                    'Class Accuracy',
-                    'Recall/Sensitivity'
-                ]
-            }
-            metrics_df = pd.DataFrame(metrics_data)
-            st.dataframe(metrics_df)
             
             # Visualisasi training progress
             if 'custom_model' in result and result['custom_model'].training_history:
@@ -997,7 +1039,6 @@ def train_evaluate_svm(results):
                 ax_progress.grid(True, alpha=0.3)
                 ax_progress.set_ylim(0, 1.0)
                 
-                # Tandai epoch
                 unique_epochs = history_df['epoch'].unique()
                 for epoch in unique_epochs:
                     epoch_data = history_df[history_df['epoch'] == epoch]
@@ -1009,7 +1050,6 @@ def train_evaluate_svm(results):
                 
                 st.pyplot(fig_progress)
                 
-                # Tampilkan tabel ringkasan epoch
                 epoch_summary = history_df.groupby('epoch').agg({
                     'iteration': ['min', 'max', 'count'],
                     'progress': 'max'
@@ -1027,6 +1067,15 @@ def train_evaluate_svm(results):
                     if col in report_df.columns:
                         report_df[col] = report_df[col].apply(lambda x: f"{x:.4f}" if isinstance(x, (int, float)) else x)
                 st.dataframe(report_df)
+                
+                # Tambahkan penjelasan
+                st.write("""
+                **Penjelasan:**
+                - **Precision (Akurasi Kelas)**: Proporsi prediksi untuk kelas tersebut yang benar
+                - **Recall**: Proporsi instance aktual dari kelas tersebut yang terdeteksi dengan benar
+                - **F1-Score**: Rata-rata harmonik dari precision dan recall
+                - **Support**: Jumlah instance aktual dari kelas tersebut
+                """)
         
         with kernel_tabs[1]:
             st.write(f"\n**Kernel: Polynomial**")
@@ -1073,7 +1122,7 @@ def train_evaluate_svm(results):
             st.write(f"**Akurasi Keseluruhan: {result['accuracy']:.4f}**")
             st.write(f"**Balanced Accuracy: {result['balanced_accuracy']:.4f}**")
             
-            # Tampilkan akurasi per kategori
+            # Tampilkan akurasi per kategori - SEKARANG BERBEDA!
             col_acc1, col_acc2, col_acc3 = st.columns(3)
             with col_acc1:
                 st.metric("Akurasi Kelas Negatif", f"{result['neg_accuracy']:.4f}",
@@ -1082,14 +1131,14 @@ def train_evaluate_svm(results):
                 st.metric("Akurasi Kelas Positif", f"{result['pos_accuracy']:.4f}",
                          delta=f"Recall: {result['classification_report']['positive']['recall']:.4f}")
             with col_acc3:
-                diff = abs(result['neg_accuracy'] - result['classification_report']['negative']['recall'])
-                st.metric("Perbedaan", f"{diff:.4f}", "vs Recall")
+                diff_neg = abs(result['neg_accuracy'] - result['classification_report']['negative']['recall'])
+                diff_pos = abs(result['pos_accuracy'] - result['classification_report']['positive']['recall'])
+                st.metric("Rata-rata Perbedaan", f"{(diff_neg + diff_pos)/2:.4f}", "Akurasi vs Recall")
             
             # Tampilkan confusion matrix
             st.subheader("🎯 Confusion Matrix")
             fig_cm, ax = plt.subplots(figsize=(6, 5))
             
-            # Cara 1: Menggunakan ConfusionMatrixDisplay
             try:
                 cm_display = ConfusionMatrixDisplay(
                     confusion_matrix=result['confusion_matrix'],
@@ -1097,7 +1146,6 @@ def train_evaluate_svm(results):
                 )
                 cm_display.plot(cmap='Greens', ax=ax, values_format='d')
             except:
-                # Cara 2: Fallback jika ConfusionMatrixDisplay tidak tersedia
                 cm = result['confusion_matrix']
                 ax.imshow(cm, interpolation='nearest', cmap=plt.cm.Greens)
                 ax.set_title('Confusion Matrix')
@@ -1107,7 +1155,6 @@ def train_evaluate_svm(results):
                 ax.set_xticklabels(['Negative', 'Positive'])
                 ax.set_yticklabels(['Negative', 'Positive'])
                 
-                # Tambahkan teks
                 thresh = cm.max() / 2.
                 for i in range(cm.shape[0]):
                     for j in range(cm.shape[1]):
@@ -1134,7 +1181,6 @@ def train_evaluate_svm(results):
                 ax_progress.grid(True, alpha=0.3)
                 ax_progress.set_ylim(0, 1.0)
                 
-                # Tandai epoch
                 unique_epochs = history_df['epoch'].unique()
                 for epoch in unique_epochs:
                     epoch_data = history_df[history_df['epoch'] == epoch]
@@ -1146,7 +1192,6 @@ def train_evaluate_svm(results):
                 
                 st.pyplot(fig_progress)
                 
-                # Tampilkan tabel ringkasan epoch
                 epoch_summary = history_df.groupby('epoch').agg({
                     'iteration': ['min', 'max', 'count'],
                     'progress': 'max'
@@ -1204,9 +1249,9 @@ def train_evaluate_svm(results):
                     'Kernel': kernel,
                     'Akurasi Keseluruhan': f"{result['accuracy']:.4f}",
                     'Balanced Accuracy': f"{result['balanced_accuracy']:.4f}",
-                    'Akurasi Negatif': f"{result['neg_accuracy']:.4f}",
+                    'Akurasi Negatif (Precision)': f"{result['neg_accuracy']:.4f}",
                     'Recall Negatif': f"{result['classification_report']['negative']['recall']:.4f}",
-                    'Akurasi Positif': f"{result['pos_accuracy']:.4f}",
+                    'Akurasi Positif (Precision)': f"{result['pos_accuracy']:.4f}",
                     'Recall Positif': f"{result['classification_report']['positive']['recall']:.4f}",
                     'Waktu Training': f"{result['training_time']:.2f}s",
                     'Total Epoch': result['training_summary']['total_epochs'] if result['training_summary'] else 0,
@@ -1219,16 +1264,22 @@ def train_evaluate_svm(results):
         # Highlight perbedaan antara akurasi dan recall
         st.info("""
         **📝 Keterangan:**
-        - **Akurasi Negatif/Positif**: Proporsi prediksi benar untuk kelas tersebut (Class Accuracy)
-        - **Recall Negatif**: Specificity = TN/(TN+FP)
-        - **Recall Positif**: Sensitivity = TP/(TP+FN)
-        - Keduanya sekarang **BERBEDA** dan memberikan informasi yang berbeda!
+        - **Akurasi Negatif/Positif** = **Precision** untuk kelas tersebut
+        - **Recall Negatif** = Specificity = TN/(TN+FP)
+        - **Recall Positif** = Sensitivity = TP/(TP+FN)
+        
+        **Perbedaan Konsep:**
+        - **Precision (Akurasi Kelas)**: Dari semua prediksi untuk kelas X, berapa banyak yang benar?
+        - **Recall**: Dari semua instance aktual kelas X, berapa banyak yang terdeteksi?
+        
+        **Contoh:**
+        - Precision Negatif tinggi: Ketika model memprediksi "negatif", biasanya benar
+        - Recall Negatif tinggi: Model berhasil mendeteksi sebagian besar instance negatif
         """)
         
         # Visualisasi perbandingan
         fig_comparison, axes = plt.subplots(2, 3, figsize=(15, 10))
         
-        # Data untuk plot
         kernels = ['linear', 'poly']
         x = np.arange(len(kernels))
         width = 0.35
@@ -1266,25 +1317,25 @@ def train_evaluate_svm(results):
         axes[1, 0].set_xticks(x[:len(iter_data)])
         axes[1, 0].set_xticklabels(kernels[:len(iter_data)])
         
-        # Akurasi Negatif vs Recall Negatif
+        # Akurasi Negatif (Precision) vs Recall Negatif
         neg_acc_data = [ratio_results[k]['neg_accuracy'] for k in kernels if k in ratio_results]
         neg_recall_data = [ratio_results[k]['classification_report']['negative']['recall'] for k in kernels if k in ratio_results]
         
-        axes[1, 1].bar(x - width/2, neg_acc_data, width, label='Akurasi Negatif', color='red', alpha=0.7)
+        axes[1, 1].bar(x - width/2, neg_acc_data, width, label='Precision (Akurasi Neg)', color='red', alpha=0.7)
         axes[1, 1].bar(x + width/2, neg_recall_data, width, label='Recall Negatif', color='pink', alpha=0.7)
-        axes[1, 1].set_title('Negatif: Akurasi vs Recall')
+        axes[1, 1].set_title('Negatif: Precision vs Recall')
         axes[1, 1].set_xticks(x)
         axes[1, 1].set_xticklabels(kernels)
         axes[1, 1].legend()
         axes[1, 1].set_ylim(0, 1.0)
         
-        # Akurasi Positif vs Recall Positif
+        # Akurasi Positif (Precision) vs Recall Positif
         pos_acc_data = [ratio_results[k]['pos_accuracy'] for k in kernels if k in ratio_results]
         pos_recall_data = [ratio_results[k]['classification_report']['positive']['recall'] for k in kernels if k in ratio_results]
         
-        axes[1, 2].bar(x - width/2, pos_acc_data, width, label='Akurasi Positif', color='green', alpha=0.7)
+        axes[1, 2].bar(x - width/2, pos_acc_data, width, label='Precision (Akurasi Pos)', color='green', alpha=0.7)
         axes[1, 2].bar(x + width/2, pos_recall_data, width, label='Recall Positif', color='lightgreen', alpha=0.7)
-        axes[1, 2].set_title('Positif: Akurasi vs Recall')
+        axes[1, 2].set_title('Positif: Precision vs Recall')
         axes[1, 2].set_xticks(x)
         axes[1, 2].set_xticklabels(kernels)
         axes[1, 2].legend()
@@ -1357,14 +1408,7 @@ def train_evaluate_svm(results):
         else:
             best_balanced_model = None
         
-        # Model dengan waktu training tercepat
-        if 'Training_Time' in summary_df.columns and not summary_df['Training_Time'].isna().all():
-            fastest_idx = summary_df['Training_Time'].idxmin()
-            fastest_model = summary_df.loc[fastest_idx]
-        else:
-            fastest_model = None
-        
-        col1, col2, col3 = st.columns(3)
+        col1, col2 = st.columns(2)
         
         with col1:
             if best_accuracy_model is not None:
@@ -1382,14 +1426,6 @@ def train_evaluate_svm(results):
                     f"{best_balanced_model['Rasio']} - {best_balanced_model['Kernel']}"
                 )
         
-        with col3:
-            if fastest_model is not None:
-                st.metric(
-                    "Waktu Tercepat",
-                    f"{fastest_model['Training_Time']:.2f}s",
-                    f"{fastest_model['Rasio']} - {fastest_model['Kernel']}"
-                )
-        
         # Simpan informasi model terbaik
         if best_accuracy_model is not None:
             st.session_state.best_model_info = {
@@ -1403,7 +1439,6 @@ def train_evaluate_svm(results):
             }
     
     return all_results, accuracy_comparison
-
 def visualize_results(all_results, accuracy_comparison):
     """Visualisasi hasil"""
     st.header("8. VISUALISASI HASIL")
