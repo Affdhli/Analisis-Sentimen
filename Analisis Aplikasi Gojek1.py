@@ -373,6 +373,193 @@ def text_preprocessing(df):
     st.write(f"**Panjang ulasan asli:** {df['text_length'].iloc[sample_idx]} karakter")
     st.write(f"**Panjang ulasan setelah preprocessing:** {df['text_length_processed'].iloc[sample_idx]} karakter")
     
+    # ============= TAMBAHAN: TAMPILKAN SEMUA HASIL TAHAPAN PREPROCESSING =============
+    st.subheader("📋 HASIL SEMUA TAHAPAN PREPROCESSING")
+    
+    # Pilih jumlah baris yang ingin ditampilkan
+    st.markdown("### Pilih Jumlah Data untuk Ditampilkan")
+    show_all = st.checkbox("Tampilkan semua data", value=False)
+    
+    if show_all:
+        num_rows = len(df)
+        st.write(f"Menampilkan semua {num_rows} baris data:")
+    else:
+        num_rows = st.slider("Jumlah baris yang ditampilkan:", 
+                            min_value=5, 
+                            max_value=min(30, len(df)), 
+                            value=10)
+        st.write(f"Menampilkan {num_rows} baris pertama:")
+    
+    # Tampilkan semua tahapan preprocessing untuk setiap baris
+    for i in range(min(num_rows, len(df))):
+        with st.expander(f"📄 Data {i+1}: {df['content'].iloc[i][:50]}...", expanded=(i==0)):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**1. TEKS ASLI:**")
+                st.text_area(f"Teks asli {i+1}", 
+                           df['content'].iloc[i], 
+                           height=100,
+                           disabled=True,
+                           key=f"original_{i}")
+                st.caption(f"Panjang: {len(str(df['content'].iloc[i]))} karakter")
+            
+            with col2:
+                st.markdown("**2. SETELAH CLEANING & CASE FOLDING:**")
+                st.text_area(f"Cleaned text {i+1}", 
+                           df['cleaned_text'].iloc[i], 
+                           height=100,
+                           disabled=True,
+                           key=f"cleaned_{i}")
+                st.caption(f"Panjang: {len(str(df['cleaned_text'].iloc[i]))} karakter")
+            
+            col3, col4 = st.columns(2)
+            
+            with col3:
+                st.markdown("**3. SETELAH REMOVE STOPWORDS:**")
+                st.text_area(f"No stopwords {i+1}", 
+                           df['text_no_stopwords'].iloc[i], 
+                           height=100,
+                           disabled=True,
+                           key=f"nostopwords_{i}")
+                st.caption(f"Panjang: {len(str(df['text_no_stopwords'].iloc[i]))} karakter")
+            
+            with col4:
+                st.markdown("**4. HASIL TOKENIZATION:**")
+                tokens = df['tokens'].iloc[i]
+                tokens_str = " | ".join([f"`{token}`" for token in tokens])
+                st.markdown(tokens_str)
+                st.caption(f"Jumlah token: {len(tokens)}")
+            
+            st.markdown("**5. TEKS FINAL (untuk TF-IDF):**")
+            st.text_area(f"Processed text {i+1}", 
+                       df['processed_text'].iloc[i], 
+                       height=80,
+                       disabled=True,
+                       key=f"processed_{i}")
+            st.caption(f"Panjang: {df['text_length_processed'].iloc[i]} karakter")
+            
+            # Ringkasan perubahan
+            st.markdown("**📊 RINGKASAN PERUBAHAN:**")
+            original_len = len(str(df['content'].iloc[i]))
+            final_len = df['text_length_processed'].iloc[i]
+            reduction_pct_item = ((original_len - final_len) / original_len * 100) if original_len > 0 else 0
+            
+            col_a, col_b, col_c = st.columns(3)
+            with col_a:
+                st.metric("Panjang awal", f"{original_len}", delta=None)
+            with col_b:
+                st.metric("Panjang akhir", f"{final_len}", delta=None)
+            with col_c:
+                st.metric("Pengurangan", f"{reduction_pct_item:.1f}%", 
+                         delta=f"-{original_len - final_len} karakter")
+    
+    # ============= TAMBAHAN: TABEL RINGKASAN SEMUA TAHAPAN =============
+    st.subheader("📊 TABEL RINGKASAN PREPROCESSING")
+    
+    # Buat dataframe ringkasan
+    summary_df = pd.DataFrame({
+        'No': range(1, min(num_rows, len(df)) + 1),
+        'Teks Asli (potongan)': df['content'].head(num_rows).apply(lambda x: x[:30] + "..." if len(x) > 30 else x),
+        'Cleaned Text': df['cleaned_text'].head(num_rows).apply(lambda x: x[:30] + "..." if len(x) > 30 else x),
+        'No Stopwords': df['text_no_stopwords'].head(num_rows).apply(lambda x: x[:30] + "..." if len(x) > 30 else x),
+        'Jumlah Token': df['tokens'].head(num_rows).apply(len),
+        'Panjang Awal': df['text_length'].head(num_rows),
+        'Panjang Akhir': df['text_length_processed'].head(num_rows),
+        'Pengurangan %': ((df['text_length'] - df['text_length_processed']) / df['text_length'] * 100).head(num_rows).round(1)
+    })
+    
+    # Tampilkan tabel
+    st.dataframe(summary_df, use_container_width=True, height=400)
+    
+    # ============= TAMBAHAN: SIMPAN HASIL PREPROCESSING =============
+    st.subheader("💾 SIMPAN HASIL PREPROCESSING")
+    
+    # Pilihan format
+    save_format = st.radio("Format file:", ["CSV", "Excel", "JSON"], horizontal=True)
+    
+    # Nama file
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = st.text_input("Nama file:", value=f"hasil_preprocessing_{timestamp}")
+    
+    if st.button("💿 Simpan ke File"):
+        try:
+            # Buat dataframe lengkap untuk disimpan
+            save_df = df.copy()
+            
+            if save_format == "CSV":
+                file_path = f"{filename}.csv"
+                save_df.to_csv(file_path, index=False, encoding='utf-8')
+                st.success(f"✅ Data disimpan sebagai {file_path}")
+                
+            elif save_format == "Excel":
+                file_path = f"{filename}.xlsx"
+                save_df.to_excel(file_path, index=False)
+                st.success(f"✅ Data disimpan sebagai {file_path}")
+                
+            elif save_format == "JSON":
+                file_path = f"{filename}.json"
+                save_df.to_json(file_path, orient='records', indent=2, force_ascii=False)
+                st.success(f"✅ Data disimpan sebagai {file_path}")
+            
+            # Tampilkan info file
+            import os
+            file_size = os.path.getsize(file_path) / 1024  # KB
+            st.info(f"📁 Ukuran file: {file_size:.2f} KB")
+            st.info(f"📊 Jumlah data: {len(df)} baris")
+            
+            # Tombol download
+            with open(file_path, "rb") as f:
+                btn = st.download_button(
+                    label="⬇️ Download File",
+                    data=f,
+                    file_name=os.path.basename(file_path),
+                    mime="text/csv" if save_format == "CSV" else 
+                         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" if save_format == "Excel" else 
+                         "application/json"
+                )
+                
+        except Exception as e:
+            st.error(f"❌ Error: {str(e)}")
+    
+    # ============= TAMBAHAN: STATISTIK DETAIL =============
+    st.subheader("📈 STATISTIK DETAIL")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        avg_tokens = df['tokens'].apply(len).mean()
+        st.metric("Rata-rata Token per Teks", f"{avg_tokens:.1f}")
+    
+    with col2:
+        max_tokens = df['tokens'].apply(len).max()
+        st.metric("Token Maksimum", f"{max_tokens}")
+    
+    with col3:
+        min_tokens = df['tokens'].apply(len).min()
+        st.metric("Token Minimum", f"{min_tokens}")
+    
+    # Grafik distribusi token
+    st.markdown("#### Distribusi Jumlah Token")
+    token_counts = df['tokens'].apply(len)
+    
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.hist(token_counts, bins=20, edgecolor='black', alpha=0.7, color='skyblue')
+    ax.set_xlabel('Jumlah Token')
+    ax.set_ylabel('Frekuensi')
+    ax.set_title('Distribusi Jumlah Token per Dokumen')
+    ax.grid(True, alpha=0.3)
+    st.pyplot(fig)
+    
+    # Info kolom yang dihasilkan
+    st.markdown("#### Kolom yang Dihasilkan:")
+    cols_info = pd.DataFrame({
+        'Kolom': df.columns,
+        'Tipe Data': df.dtypes.astype(str).values,
+        'Contoh Data': df.iloc[0].astype(str).apply(lambda x: x[:50] + "..." if len(x) > 50 else x).values
+    })
+    st.dataframe(cols_info, use_container_width=True)
+    
     return df
 
 def create_wordcloud_viz(df):
