@@ -374,7 +374,7 @@ def text_preprocessing(df):
     st.write(f"**Panjang ulasan setelah preprocessing:** {df['text_length_processed'].iloc[sample_idx]} karakter")
     
     # ============= TAMBAHAN: TAMPILKAN SEMUA HASIL TAHAPAN PREPROCESSING =============
-    st.subheader("📋 HASIL SEMUA TAHAPAN PREPROCESSING")
+    st.subheader("HASIL SEMUA TAHAPAN PREPROCESSING")
     
     # Pilih jumlah baris yang ingin ditampilkan
     st.markdown("### Pilih Jumlah Data untuk Ditampilkan")
@@ -392,7 +392,7 @@ def text_preprocessing(df):
     
     # Tampilkan semua tahapan preprocessing untuk setiap baris
     for i in range(min(num_rows, len(df))):
-        with st.expander(f"📄 Data {i+1}: {df['content'].iloc[i][:50]}...", expanded=(i==0)):
+        with st.expander(f"Data {i+1}: {df['content'].iloc[i][:50]}...", expanded=(i==0)):
             col1, col2 = st.columns(2)
             
             with col1:
@@ -440,7 +440,7 @@ def text_preprocessing(df):
             st.caption(f"Panjang: {df['text_length_processed'].iloc[i]} karakter")
             
             # Ringkasan perubahan
-            st.markdown("**📊 RINGKASAN PERUBAHAN:**")
+            st.markdown("**RINGKASAN PERUBAHAN:**")
             original_len = len(str(df['content'].iloc[i]))
             final_len = df['text_length_processed'].iloc[i]
             reduction_pct_item = ((original_len - final_len) / original_len * 100) if original_len > 0 else 0
@@ -455,7 +455,7 @@ def text_preprocessing(df):
                          delta=f"-{original_len - final_len} karakter")
     
     # ============= TAMBAHAN: TABEL RINGKASAN SEMUA TAHAPAN =============
-    st.subheader("📊 TABEL RINGKASAN PREPROCESSING")
+    st.subheader("TABEL RINGKASAN PREPROCESSING")
     
     # Buat dataframe ringkasan
     summary_df = pd.DataFrame({
@@ -473,7 +473,7 @@ def text_preprocessing(df):
     st.dataframe(summary_df, use_container_width=True, height=400)
     
     # ============= TAMBAHAN: SIMPAN HASIL PREPROCESSING =============
-    st.subheader("💾 SIMPAN HASIL PREPROCESSING")
+    st.subheader("SIMPAN HASIL PREPROCESSING")
     
     # Pilihan format
     save_format = st.radio("Format file:", ["CSV", "Excel", "JSON"], horizontal=True)
@@ -482,7 +482,7 @@ def text_preprocessing(df):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = st.text_input("Nama file:", value=f"hasil_preprocessing_{timestamp}")
     
-    if st.button("💿 Simpan ke File"):
+    if st.button("Simpan ke File"):
         try:
             # Buat dataframe lengkap untuk disimpan
             save_df = df.copy()
@@ -490,28 +490,28 @@ def text_preprocessing(df):
             if save_format == "CSV":
                 file_path = f"{filename}.csv"
                 save_df.to_csv(file_path, index=False, encoding='utf-8')
-                st.success(f"✅ Data disimpan sebagai {file_path}")
+                st.success(f"Data disimpan sebagai {file_path}")
                 
             elif save_format == "Excel":
                 file_path = f"{filename}.xlsx"
                 save_df.to_excel(file_path, index=False)
-                st.success(f"✅ Data disimpan sebagai {file_path}")
+                st.success(f"Data disimpan sebagai {file_path}")
                 
             elif save_format == "JSON":
                 file_path = f"{filename}.json"
                 save_df.to_json(file_path, orient='records', indent=2, force_ascii=False)
-                st.success(f"✅ Data disimpan sebagai {file_path}")
+                st.success(f"Data disimpan sebagai {file_path}")
             
             # Tampilkan info file
             import os
             file_size = os.path.getsize(file_path) / 1024  # KB
-            st.info(f"📁 Ukuran file: {file_size:.2f} KB")
-            st.info(f"📊 Jumlah data: {len(df)} baris")
+            st.info(f"Ukuran file: {file_size:.2f} KB")
+            st.info(f"Jumlah data: {len(df)} baris")
             
             # Tombol download
             with open(file_path, "rb") as f:
                 btn = st.download_button(
-                    label="⬇️ Download File",
+                    label="Download File",
                     data=f,
                     file_name=os.path.basename(file_path),
                     mime="text/csv" if save_format == "CSV" else 
@@ -520,10 +520,10 @@ def text_preprocessing(df):
                 )
                 
         except Exception as e:
-            st.error(f"❌ Error: {str(e)}")
+            st.error(f"Error: {str(e)}")
     
     # ============= TAMBAHAN: STATISTIK DETAIL =============
-    st.subheader("📈 STATISTIK DETAIL")
+    st.subheader("STATISTIK DETAIL")
     
     col1, col2, col3 = st.columns(3)
     
@@ -666,11 +666,11 @@ def tfidf_feature_extraction(df):
     top_features_df = pd.DataFrame(top_features_data)
     st.dataframe(top_features_df)
     
-    # ============= TAMBAHAN: SIMPAN HASIL TF-IDF =============
-    st.subheader("💾 SIMPAN HASIL EKSTRAKSI FITUR TF-IDF")
+    # TAMBAHAN: SIMPAN HASIL TF-IDF
+    st.subheader("SIMPAN HASIL EKSTRAKSI FITUR TF-IDF")
     
     # Buat tab untuk berbagai format penyimpanan
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 Matriks TF-IDF", "📋 Daftar Fitur", "🎯 Top Fitur", "📁 Semua Data"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Matriks TF-IDF", "Daftar Fitur", "Top Fitur", "Semua Data"])
     
     with tab1:
         st.markdown("### Simpan Matriks TF-IDF")
@@ -692,7 +692,7 @@ def tfidf_feature_extraction(df):
                                          columns=feature_names[:10])
                 st.dataframe(preview_df.style.format("{:.4f}"))
             else:
-                st.warning("⚠️ Matriks terlalu besar untuk dikonversi ke dense format.")
+                st.warning("Matriks terlalu besar untuk dikonversi ke dense format.")
                 X_dense = None
         else:
             X_dense = None
@@ -705,24 +705,24 @@ def tfidf_feature_extraction(df):
             filename_tfidf = st.text_input("Nama file matriks:", 
                                           value=f"tfidf_matrix_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
         
-        if st.button("💿 Simpan Matriks TF-IDF"):
+        if st.button("Simpan Matriks TF-IDF"):
             try:
                 if save_option == "Sparse Matrix (CSR - direkomendasikan)":
                     if save_format == "NPZ (sparse)":
                         file_path = f"{filename_tfidf}.npz"
                         sparse.save_npz(file_path, X)
-                        st.success(f"✅ Matriks TF-IDF sparse disimpan sebagai {file_path}")
+                        st.success(f"Matriks TF-IDF sparse disimpan sebagai {file_path}")
                     elif save_format == "CSV":
                         file_path = f"{filename_tfidf}.csv"
                         # Simpan sebagai dense matrix untuk CSV
                         if X.shape[0] * X.shape[1] < 500000:
                             X_dense_save = X.toarray()
                             pd.DataFrame(X_dense_save, columns=feature_names).to_csv(file_path, index=False)
-                            st.success(f"✅ Matriks TF-IDF disimpan sebagai {file_path}")
+                            st.success(f"Matriks TF-IDF disimpan sebagai {file_path}")
                         else:
-                            st.error("❌ Matriks terlalu besar untuk disimpan sebagai CSV.")
+                            st.error("Matriks terlalu besar untuk disimpan sebagai CSV.")
                     elif save_format == "JSON":
-                        st.warning("⚠️ Format JSON tidak direkomendasikan untuk matriks sparse yang besar.")
+                        st.warning("Format JSON tidak direkomendasikan untuk matriks sparse yang besar.")
                 else:
                     if X_dense is not None:
                         if save_format == "NPZ (sparse)":
@@ -734,22 +734,22 @@ def tfidf_feature_extraction(df):
                         elif save_format == "JSON":
                             file_path = f"{filename_tfidf}.json"
                             pd.DataFrame(X_dense, columns=feature_names).to_json(file_path, orient='split')
-                        st.success(f"✅ Matriks TF-IDF disimpan sebagai {file_path}")
+                        st.success(f"Matriks TF-IDF disimpan sebagai {file_path}")
                     else:
-                        st.error("❌ Matriks tidak tersedia dalam format dense.")
+                        st.error("Matriks tidak tersedia dalam format dense.")
                 
                 # Tombol download
                 if 'file_path' in locals():
                     with open(file_path, "rb") as f:
                         st.download_button(
-                            label="⬇️ Download Matriks",
+                            label="Download Matriks",
                             data=f,
                             file_name=os.path.basename(file_path),
                             mime="application/octet-stream"
                         )
                         
             except Exception as e:
-                st.error(f"❌ Error: {str(e)}")
+                st.error(f"Error: {str(e)}")
     
     with tab2:
         st.markdown("### Simpan Daftar Semua Fitur")
@@ -772,7 +772,7 @@ def tfidf_feature_extraction(df):
             filename_features = st.text_input("Nama file fitur:", 
                                             value=f"tfidf_features_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
         
-        if st.button("📋 Simpan Daftar Fitur"):
+        if st.button("Simpan Daftar Fitur"):
             try:
                 if feat_format == "CSV":
                     file_path = f"{filename_features}.csv"
@@ -784,12 +784,12 @@ def tfidf_feature_extraction(df):
                     file_path = f"{filename_features}.json"
                     features_df.to_json(file_path, orient='records', indent=2)
                 
-                st.success(f"✅ Daftar fitur disimpan sebagai {file_path}")
+                st.success(f"Daftar fitur disimpan sebagai {file_path}")
                 
                 # Download button
                 with open(file_path, "rb") as f:
                     st.download_button(
-                        label="⬇️ Download Daftar Fitur",
+                        label="Download Daftar Fitur",
                         data=f,
                         file_name=os.path.basename(file_path),
                         mime="text/csv" if feat_format == "CSV" else 
@@ -798,7 +798,7 @@ def tfidf_feature_extraction(df):
                     )
                     
             except Exception as e:
-                st.error(f"❌ Error: {str(e)}")
+                st.error(f"Error: {str(e)}")
     
     with tab3:
         st.markdown("### Simpan Top Fitur")
@@ -837,7 +837,7 @@ def tfidf_feature_extraction(df):
             filename_top = st.text_input("Nama file top fitur:", 
                                        value=f"top_{num_top_features}_features_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
         
-        if st.button("🎯 Simpan Top Fitur"):
+        if st.button("Simpan Top Fitur"):
             try:
                 if top_format in ["CSV", "Excel", "JSON"]:
                     if top_format == "CSV":
@@ -850,30 +850,30 @@ def tfidf_feature_extraction(df):
                         file_path = f"{filename_top}.json"
                         top_features_custom.to_json(file_path, orient='records', indent=2)
                     
-                    st.success(f"✅ Top fitur disimpan sebagai {file_path}")
+                    st.success(f"Top fitur disimpan sebagai {file_path}")
                     
                     # Download button
                     with open(file_path, "rb") as f:
                         st.download_button(
-                            label=f"⬇️ Download Top {num_top_features} Fitur",
+                            label=f"Download Top {num_top_features} Fitur",
                             data=f,
                             file_name=os.path.basename(file_path)
                         )
                 elif top_format == "PNG":
                     file_path = f"{filename_top}.png"
                     fig.savefig(file_path, dpi=300, bbox_inches='tight')
-                    st.success(f"✅ Visualisasi disimpan sebagai {file_path}")
+                    st.success(f"Visualisasi disimpan sebagai {file_path}")
                     
                     with open(file_path, "rb") as f:
                         st.download_button(
-                            label="⬇️ Download Gambar",
+                            label="Download Gambar",
                             data=f,
                             file_name=os.path.basename(file_path),
                             mime="image/png"
                         )
                         
             except Exception as e:
-                st.error(f"❌ Error: {str(e)}")
+                st.error(f"Error: {str(e)}")
     
     with tab4:
         st.markdown("### Simpan Semua Data dengan Fitur TF-IDF")
@@ -900,7 +900,7 @@ def tfidf_feature_extraction(df):
                 filename_combined = st.text_input("Nama file data gabungan:", 
                                                 value=f"combined_tfidf_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
             
-            if st.button("📁 Simpan Data Gabungan"):
+            if st.button("Simpan Data Gabungan"):
                 try:
                     if combined_format == "CSV":
                         file_path = f"{filename_combined}.csv"
@@ -912,23 +912,23 @@ def tfidf_feature_extraction(df):
                         file_path = f"{filename_combined}.parquet"
                         combined_df.to_parquet(file_path, index=False)
                     
-                    st.success(f"✅ Data gabungan disimpan sebagai {file_path}")
+                    st.success(f"Data gabungan disimpan sebagai {file_path}")
                     
                     # Download button
                     with open(file_path, "rb") as f:
                         st.download_button(
-                            label="⬇️ Download Data Gabungan",
+                            label="Download Data Gabungan",
                             data=f,
                             file_name=os.path.basename(file_path)
                         )
                         
                 except Exception as e:
-                    st.error(f"❌ Error: {str(e)}")
+                    st.error(f"Error: {str(e)}")
         else:
-            st.warning("⚠️ Data terlalu besar untuk digabungkan. Disarankan hanya menyimpan matriks TF-IDF saja.")
+            st.warning("Data terlalu besar untuk digabungkan. Disarankan hanya menyimpan matriks TF-IDF saja.")
     
-    # ============= TAMBAHAN: STATISTIK TF-IDF =============
-    st.subheader("📈 STATISTIK TF-IDF")
+    # TAMBAHAN: STATISTIK TF-IDF
+    st.subheader("STATISTIK TF-IDF")
     
     # Hitung beberapa statistik
     col1, col2, col3 = st.columns(3)
@@ -969,15 +969,15 @@ def tfidf_feature_extraction(df):
     ax2.grid(True, alpha=0.3)
     st.pyplot(fig2)
     
-    # ============= TAMBAHAN: EKSPORT TFIDF VECTORIZER =============
-    st.subheader("🔧 Simpan TF-IDF Vectorizer Model")
+    # TAMBAHAN: EKSPORT TFIDF VECTORIZER
+    st.subheader("Simpan TF-IDF Vectorizer Model")
     
     st.info("Simpan model TF-IDF Vectorizer untuk digunakan pada data baru.")
     
     filename_vectorizer = st.text_input("Nama file vectorizer:", 
                                       value=f"tfidf_vectorizer_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
     
-    if st.button("🔧 Simpan Vectorizer Model"):
+    if st.button("Simpan Vectorizer Model"):
         try:
             import pickle
             file_path = f"{filename_vectorizer}.pkl"
@@ -986,7 +986,7 @@ def tfidf_feature_extraction(df):
             with open(file_path, 'wb') as f:
                 pickle.dump(tfidf_vectorizer, f)
             
-            st.success(f"✅ Vectorizer disimpan sebagai {file_path}")
+            st.success(f"Vectorizer disimpan sebagai {file_path}")
             
             # Informasi vectorizer
             vectorizer_info = {
@@ -1002,16 +1002,17 @@ def tfidf_feature_extraction(df):
             # Download button
             with open(file_path, "rb") as f:
                 st.download_button(
-                    label="⬇️ Download Vectorizer",
+                    label="Download Vectorizer",
                     data=f,
                     file_name=os.path.basename(file_path),
                     mime="application/octet-stream"
                 )
                 
         except Exception as e:
-            st.error(f"❌ Error: {str(e)}")
+            st.error(f"Error: {str(e)}")
     
     return X, y, tfidf_vectorizer
+
 
 def data_splitting(X, y):
     """Pembagian data training-testing"""
