@@ -2079,7 +2079,7 @@ def load_model_from_pickle(file_path=None):
 # ============================================
 
 def implementasi_sistem():
-    """Fungsi untuk implementasi sistem klasifikasi kalimat baru yang SESUNGGUHNYA"""
+    """Fungsi untuk implementasi sistem klasifikasi kalimat baru"""
     st.header("9. IMPLEMENTASI SISTEM KLASIFIKASI")
     
     # Tab untuk implementasi
