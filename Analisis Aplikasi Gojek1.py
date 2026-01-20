@@ -2083,7 +2083,7 @@ def implementasi_sistem():
     st.header("9. IMPLEMENTASI SISTEM KLASIFIKASI")
     
     # Tab untuk implementasi
-    tab1, tab2, tab3 = st.tabs(["🔍 Analisis Teks", "📁 Analisis File", "⚙️ Kelola Model"])
+    tab1, tab2, tab3 = st.tabs(["Analisis Teks", "Analisis File", "Hasil Best Model"])
     
     with tab1:
         _implementasi_analisis_teks()
@@ -2092,72 +2092,131 @@ def implementasi_sistem():
         _implementasi_analisis_file()
     
     with tab3:
-        _implementasi_kelola_model()
+        _implementasi_hasil_best_model()
 
-def _implementasi_analisis_teks():
-    """Implementasi untuk analisis teks"""
-    st.subheader("Analisis Teks Langsung")
+def _implementasi_hasil_best_model():
+    """Menampilkan hasil best model dan langsung implementasi"""
+    st.subheader("Hasil Best Model dan Uji Langsung")
     
     # Cek apakah ada model yang tersedia
-    model_available = False
-    
-    # Cek dari model yang baru di-training
-    if 'model_package' in st.session_state:
-        model_package = st.session_state.model_package
-        model_available = True
-    else:
-        # Coba muat model dari file
-        model_package = load_model_from_pickle()
-        if model_package:
-            model_available = True
-    
-    if not model_available:
+    if 'best_model_info' not in st.session_state:
         st.warning("""
-        ⚠️ **Model belum tersedia!** 
+        **Best Model belum tersedia!** 
         
-        Silakan lakukan salah satu dari berikut:
-        1. Lakukan training model di section **"7. Training & Evaluasi SVM"**, atau
-        2. Upload model yang sudah ada di tab **"Kelola Model"**
+        Silakan lakukan training model di section **"7. Training & Evaluasi SVM"** terlebih dahulu.
         """)
         return
     
-    # Tampilkan informasi model
-    model_info = model_package['model_info']
+    best_model_info = st.session_state.best_model_info
     
-    st.success("✅ MODEL TERSEDIA:")
+    # Tampilkan informasi best model
+    st.success("**BEST MODEL YANG TELAH DITRAINING:**")
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Rasio", model_info['ratio'])
+        st.metric("Rasio", best_model_info['ratio'])
     with col2:
-        st.metric("Kernel", model_info['kernel'])
+        st.metric("Kernel", best_model_info['kernel'])
     with col3:
-        st.metric("Akurasi", f"{model_info['accuracy']:.4f}")
+        st.metric("Akurasi", f"{best_model_info['accuracy']:.4f}")
+    with col4:
+        st.metric("F1-Score", f"{best_model_info['f1_score']:.4f}")
     
-    # Input teks untuk analisis
-    st.subheader("Masukkan Teks untuk Analisis")
+    # Tampilkan detail lengkap best model
+    st.subheader("Detail Best Model")
     
-    user_input = st.text_area(
-        "Masukkan kalimat untuk dianalisis sentimennya:",
-        "Driver sangat ramah dan cepat dalam melayani",
-        height=100
-    )
+    with st.expander("Parameter Model", expanded=True):
+        st.write("**Parameter Training:**")
+        st.write(f"- Ratio training: {best_model_info['ratio']}")
+        st.write(f"- Kernel: {best_model_info['kernel']}")
+        st.write(f"- C parameter: {best_model_info['best_params'].get('C', 'N/A')}")
+        st.write(f"- Gamma parameter: {best_model_info['best_params'].get('gamma', 'N/A')}")
+        
+        st.write("**Hasil Evaluasi:**")
+        st.write(f"- Accuracy: {best_model_info['accuracy']:.4f}")
+        st.write(f"- Precision: {best_model_info['precision']:.4f}")
+        st.write(f"- Recall: {best_model_info['recall']:.4f}")
+        st.write(f"- F1-Score: {best_model_info['f1_score']:.4f}")
+        st.write(f"- Training time: {best_model_info['training_time']:.2f} detik")
+        
+        st.write("**Matriks Confusion:**")
+        st.write(f"- True Positive: {best_model_info['confusion_matrix'][1][1]}")
+        st.write(f"- True Negative: {best_model_info['confusion_matrix'][0][0]}")
+        st.write(f"- False Positive: {best_model_info['confusion_matrix'][0][1]}")
+        st.write(f"- False Negative: {best_model_info['confusion_matrix'][1][0]}")
     
-    if st.button("🔍 Analisis Sentimen", type="primary"):
-        if user_input.strip():
-            _analisis_sentimen_aktual(user_input, model_package)
-        else:
-            st.warning("Silakan masukkan teks untuk dianalisis!")
+    # Divider untuk bagian uji langsung
+    st.markdown("---")
+    
+    # Bagian untuk uji langsung dengan best model
+    st.subheader("Uji Langsung dengan Best Model")
+    
+    # Pilih mode input
+    input_mode = st.radio("Pilih mode input:", ["Input Teks Manual", "Input File"])
+    
+    if input_mode == "Input Teks Manual":
+        # Input teks untuk analisis
+        st.write("**Masukkan Teks untuk Uji Langsung:**")
+        
+        user_input = st.text_area(
+            "Masukkan kalimat untuk dianalisis sentimennya:",
+            "Driver sangat ramah dan cepat dalam melayani",
+            height=100,
+            key="best_model_input"
+        )
+        
+        if st.button("Analisis Sentimen dengan Best Model", type="primary"):
+            if user_input.strip():
+                _uji_dengan_best_model(user_input)
+            else:
+                st.warning("Silakan masukkan teks untuk dianalisis!")
+    
+    else:  # Input File
+        st.write("**Upload File untuk Uji Batch:**")
+        
+        uploaded_file = st.file_uploader(
+            "Upload file CSV atau TXT berisi multiple teks",
+            type=['csv', 'txt'],
+            key="best_model_file_upload"
+        )
+        
+        if uploaded_file is not None:
+            try:
+                if uploaded_file.name.endswith('.csv'):
+                    df = pd.read_csv(uploaded_file)
+                    text_column = 'content' if 'content' in df.columns else 'text'
+                    if text_column not in df.columns:
+                        st.error("File CSV harus memiliki kolom 'content' atau 'text'")
+                        return
+                    
+                    texts = df[text_column].astype(str).tolist()
+                else:
+                    content = uploaded_file.read().decode('utf-8')
+                    texts = [line.strip() for line in content.split('\n') if line.strip()]
+                
+                st.success(f"File berhasil dibaca: {len(texts)} teks ditemukan")
+                
+                if st.button("Analisis Batch dengan Best Model", type="primary"):
+                    _uji_batch_dengan_best_model(texts)
+                    
+            except Exception as e:
+                st.error(f"Error membaca file: {str(e)}")
 
-def _analisis_sentimen_aktual(text, model_package):
-    """Melakukan analisis sentimen yang sesungguhnya"""
-    with st.spinner("Menganalisis sentimen..."):
+def _uji_dengan_best_model(text):
+    """Uji langsung dengan best model"""
+    with st.spinner("Menganalisis sentimen dengan Best Model..."):
         try:
-            # Ambil model dan vectorizer
+            # Load best model dari session state
+            if 'best_model_package' not in st.session_state:
+                st.error("Best Model tidak tersedia di session state!")
+                return
+            
+            model_package = st.session_state.best_model_package
             model = model_package['model']
             vectorizer = model_package['tfidf_vectorizer']
+            model_info = model_package['model_info']
             
-            # Preprocessing teks input (sama dengan preprocessing training)
+            # Preprocessing teks input
             factory = StopWordRemoverFactory()
             stopword_remover = factory.create_stop_word_remover()
             
@@ -2181,73 +2240,300 @@ def _analisis_sentimen_aktual(text, model_package):
             # Lakukan prediksi
             prediction = model.predict(text_vectorized)[0]
             
-            # Dapatkan probabilitas jika tersedia
+            # Dapatkan probabilitas
             if hasattr(model, 'predict_proba'):
                 probabilities = model.predict_proba(text_vectorized)[0]
                 confidence = max(probabilities)
+                confidence_scores = {
+                    'Negatif': probabilities[0],
+                    'Positif': probabilities[1]
+                }
             elif hasattr(model, 'decision_function'):
                 decision = model.decision_function(text_vectorized)[0]
                 confidence = 1 / (1 + np.exp(-abs(decision)))
+                confidence_scores = {
+                    'Negatif': 1 - confidence,
+                    'Positif': confidence
+                }
             else:
                 confidence = 0.8
+                confidence_scores = {
+                    'Negatif': 0.2,
+                    'Positif': 0.8
+                }
             
             # Konversi ke label
             label = "POSITIF" if prediction == 1 else "NEGATIF"
             
             # Tampilkan hasil
-            _tampilkan_hasil_analisis_aktual(text, label, confidence, model_package)
+            _tampilkan_hasil_uji_best_model(text, label, confidence, confidence_scores, model_info)
             
         except Exception as e:
-            st.error(f"❌ Terjadi kesalahan dalam analisis: {str(e)}")
-            st.info("Menggunakan analisis fallback...")
-            _analisis_fallback(text, model_package['model_info'])
+            st.error(f"Terjadi kesalahan dalam analisis: {str(e)}")
 
-def _tampilkan_hasil_analisis_aktual(text, prediction, confidence, model_package):
-    """Menampilkan hasil analisis aktual"""
-    st.subheader("🎯 HASIL ANALISIS")
+def _tampilkan_hasil_uji_best_model(text, prediction, confidence, confidence_scores, model_info):
+    """Menampilkan hasil uji dengan best model"""
+    st.subheader("HASIL UJI DENGAN BEST MODEL")
     
     word_count = len(text.split())
     
-    col_res1, col_res2, col_res3 = st.columns(3)
-    with col_res1:
+    col1, col2, col3 = st.columns(3)
+    with col1:
         st.metric("Jumlah Kata", f"{word_count}")
-    with col_res2:
+    with col2:
         color = "green" if prediction == "POSITIF" else "red"
         st.markdown(f"<h2 style='color: {color}; text-align: center;'>{prediction}</h2>", 
                    unsafe_allow_html=True)
-    with col_res3:
+    with col3:
         st.metric("Konfidensi", f"{confidence:.4f}")
     
     # Detail analisis
-    with st.expander("📊 Detail Analisis", expanded=True):
+    with st.expander("Detail Uji Model", expanded=True):
         st.write("**Kalimat Input:**")
         st.info(f'"{text}"')
         
-        model_info = model_package['model_info']
-        st.write("**Informasi Model:**")
-        st.write(f"- Model: SVM dengan kernel {model_info['kernel']}")
-        st.write(f"- Rasio training: {model_info['ratio']}")
-        st.write(f"- Akurasi model: {model_info['accuracy']:.4f}")
-        st.write(f"- Dibuat pada: {model_info['created_at'].strftime('%Y-%m-%d %H:%M:%S')}")
+        # Tampilkan confidence score untuk kedua kelas
+        st.write("**Nilai Konfidensi per Kelas:**")
+        col_neg, col_pos = st.columns(2)
+        with col_neg:
+            neg_score = confidence_scores['Negatif']
+            st.metric("Negatif", f"{neg_score:.4f}")
+        with col_pos:
+            pos_score = confidence_scores['Positif']
+            st.metric("Positif", f"{pos_score:.4f}")
         
-        st.write("**Hasil Prediksi:**")
-        if prediction == "POSITIF":
-            st.success(f"✅ **POSITIF** - Kalimat ini menunjukkan sentimen positif terhadap layanan Gojek.")
-            st.write(f"**Interpretasi:** Ulasan ini mengandung aspek positif seperti kepuasan, rekomendasi, atau apresiasi terhadap layanan.")
-        else:
-            st.error(f"❌ **NEGATIF** - Kalimat ini menunjukkan sentimen negatif terhadap layanan Gojek.")
-            st.write(f"**Interpretasi:** Ulasan ini mengandung kritik, keluhan, atau ketidakpuasan terhadap layanan.")
-        
-        # Visualisasi confidence
+        # Visualisasi confidence scores
         st.write("**Visualisasi Konfidensi:**")
-        fig, ax = plt.subplots(figsize=(10, 2))
-        colors = ['#e74c3c', '#2ecc71']
-        ax.barh([0], [confidence], color=colors[1] if prediction == "POSITIF" else colors[0], height=0.5)
-        ax.set_xlim(0, 1)
-        ax.set_xlabel('Tingkat Konfidensi')
-        ax.set_title(f'Konfidensi Prediksi: {confidence:.2%}')
-        ax.text(confidence/2, 0, f'{confidence:.2%}', ha='center', va='center', color='white', fontweight='bold')
+        fig, ax = plt.subplots(figsize=(10, 4))
+        
+        labels = ['Negatif', 'Positif']
+        scores = [neg_score, pos_score]
+        colors = ['#e74c3c', '#2ecc71'] if prediction == "POSITIF" else ['#2ecc71', '#e74c3c']
+        
+        bars = ax.bar(labels, scores, color=colors)
+        ax.set_ylim(0, 1)
+        ax.set_ylabel('Probabilitas')
+        ax.set_title('Probabilitas Prediksi per Kelas')
+        
+        # Tambahkan nilai di atas bar
+        for bar, score in zip(bars, scores):
+            height = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2., height + 0.01,
+                   f'{score:.3f}', ha='center', va='bottom')
+        
         st.pyplot(fig)
+        
+        # Informasi model yang digunakan
+        st.write("**Model yang Digunakan:**")
+        st.write(f"- Best Model dari ratio: {model_info['ratio']}")
+        st.write(f"- Kernel: {model_info['kernel']}")
+        st.write(f"- Akurasi training: {model_info['accuracy']:.4f}")
+        st.write(f"- F1-Score: {model_info['f1_score']:.4f}")
+        
+        # Interpretasi hasil
+        st.write("**Interpretasi Hasil:**")
+        if prediction == "POSITIF":
+            st.success(f"**POSITIF** - Kalimat ini menunjukkan sentimen positif terhadap layanan.")
+            if confidence > 0.8:
+                st.write("Prediksi sangat yakin dengan tingkat konfidensi tinggi.")
+            elif confidence > 0.6:
+                st.write("Prediksi cukup yakin.")
+            else:
+                st.write("Prediksi dengan tingkat konfidensi rendah.")
+        else:
+            st.error(f"**NEGATIF** - Kalimat ini menunjukkan sentimen negatif terhadap layanan.")
+            if confidence > 0.8:
+                st.write("Prediksi sangat yakin dengan tingkat konfidensi tinggi.")
+            elif confidence > 0.6:
+                st.write("Prediksi cukup yakin.")
+            else:
+                st.write("Prediksi dengan tingkat konfidensi rendah.")
+
+def _uji_batch_dengan_best_model(texts):
+    """Uji batch dengan best model"""
+    with st.spinner("Menganalisis batch dengan Best Model..."):
+        try:
+            # Load best model dari session state
+            if 'best_model_package' not in st.session_state:
+                st.error("Best Model tidak tersedia di session state!")
+                return
+            
+            model_package = st.session_state.best_model_package
+            model = model_package['model']
+            vectorizer = model_package['tfidf_vectorizer']
+            model_info = model_package['model_info']
+            
+            results = []
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            for i, text in enumerate(texts):
+                status_text.text(f"Memproses teks {i+1}/{len(texts)}...")
+                
+                try:
+                    # Preprocessing
+                    factory = StopWordRemoverFactory()
+                    stopword_remover = factory.create_stop_word_remover()
+                    
+                    def clean_text_input(t):
+                        if not isinstance(t, str):
+                            return ""
+                        t = t.lower()
+                        t = re.sub(r'[^a-zA-Z\s]', ' ', t)
+                        t = re.sub(r'\s+', ' ', t).strip()
+                        return t
+                    
+                    cleaned_text = clean_text_input(text)
+                    text_no_stopwords = stopword_remover.remove(cleaned_text)
+                    text_vectorized = vectorizer.transform([text_no_stopwords])
+                    
+                    # Prediksi
+                    prediction = model.predict(text_vectorized)[0]
+                    label = "POSITIF" if prediction == 1 else "NEGATIF"
+                    
+                    # Confidence
+                    if hasattr(model, 'predict_proba'):
+                        probabilities = model.predict_proba(text_vectorized)[0]
+                        confidence = max(probabilities)
+                    else:
+                        confidence = 0.8
+                    
+                    results.append({
+                        'No': i+1,
+                        'Teks': text[:100] + '...' if len(text) > 100 else text,
+                        'Sentimen': label,
+                        'Konfidensi': f"{confidence:.4f}",
+                        'Jumlah Kata': len(text.split())
+                    })
+                    
+                except Exception as e:
+                    results.append({
+                        'No': i+1,
+                        'Teks': text[:100] + '...' if len(text) > 100 else text,
+                        'Sentimen': 'ERROR',
+                        'Konfidensi': '0.0000',
+                        'Jumlah Kata': len(text.split())
+                    })
+                
+                progress_bar.progress((i + 1) / len(texts))
+            
+            progress_bar.progress(1.0)
+            status_text.text("Analisis selesai!")
+            
+            # Tampilkan hasil
+            results_df = pd.DataFrame(results)
+            st.subheader("Hasil Uji Batch dengan Best Model")
+            st.dataframe(results_df, use_container_width=True)
+            
+            # Statistik
+            total = len(results)
+            positif = sum(1 for r in results if r['Sentimen'] == 'POSITIF')
+            negatif = sum(1 for r in results if r['Sentimen'] == 'NEGATIF')
+            error = sum(1 for r in results if r['Sentimen'] == 'ERROR')
+            
+            # Metrik akurasi
+            st.subheader("Statistik Uji Batch")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Total Teks", total)
+            with col2:
+                st.metric("Positif", positif, f"{positif/total*100:.1f}%")
+            with col3:
+                st.metric("Negatif", negatif, f"{negatif/total*100:.1f}%")
+            with col4:
+                st.metric("Error", error, f"{error/total*100:.1f}%" if error > 0 else "0%")
+            
+            # Visualisasi distribusi
+            fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+            
+            # Pie chart
+            labels = ['Positif', 'Negatif', 'Error']
+            sizes = [positif, negatif, error]
+            colors = ['#2ecc71', '#e74c3c', '#f39c12']
+            
+            ax[0].pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
+            ax[0].set_title('Distribusi Sentimen')
+            
+            # Bar chart
+            x = np.arange(len(labels))
+            ax[1].bar(x, sizes, color=colors)
+            ax[1].set_xlabel('Sentimen')
+            ax[1].set_ylabel('Jumlah')
+            ax[1].set_title('Jumlah per Sentimen')
+            ax[1].set_xticks(x)
+            ax[1].set_xticklabels(labels)
+            
+            plt.tight_layout()
+            st.pyplot(fig)
+            
+            # Tombol download hasil
+            csv = results_df.to_csv(index=False)
+            st.download_button(
+                label="Download Hasil Uji Batch (CSV)",
+                data=csv,
+                file_name="hasil_uji_batch_best_model.csv",
+                mime="text/csv"
+            )
+            
+        except Exception as e:
+            st.error(f"Error dalam uji batch: {str(e)}")
+
+def _implementasi_analisis_teks():
+    """Implementasi untuk analisis teks"""
+    st.subheader("Analisis Teks Langsung")
+    
+    # Cek apakah ada model yang tersedia
+    model_available = False
+    
+    # Cek dari model yang baru di-training
+    if 'model_package' in st.session_state:
+        model_package = st.session_state.model_package
+        model_available = True
+    else:
+        # Coba muat model dari file
+        model_package = load_model_from_pickle()
+        if model_package:
+            model_available = True
+    
+    if not model_available:
+        st.warning("""
+        **Model belum tersedia!** 
+        
+        Silakan lakukan salah satu dari berikut:
+        1. Lakukan training model di section **"7. Training & Evaluasi SVM"**, atau
+        2. Lihat hasil Best Model di tab **"Hasil Best Model"**
+        """)
+        return
+    
+    # Tampilkan informasi model
+    model_info = model_package['model_info']
+    
+    st.success("MODEL TERSEDIA:")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Rasio", model_info['ratio'])
+    with col2:
+        st.metric("Kernel", model_info['kernel'])
+    with col3:
+        st.metric("Akurasi", f"{model_info['accuracy']:.4f}")
+    
+    # Input teks untuk analisis
+    st.subheader("Masukkan Teks untuk Analisis")
+    
+    user_input = st.text_area(
+        "Masukkan kalimat untuk dianalisis sentimennya:",
+        "Driver sangat ramah dan cepat dalam melayani",
+        height=100,
+        key="reg_input"
+    )
+    
+    if st.button("Analisis Sentimen", type="primary"):
+        if user_input.strip():
+            _analisis_sentimen_aktual(user_input, model_package)
+        else:
+            st.warning("Silakan masukkan teks untuk dianalisis!")
 
 def _implementasi_analisis_file():
     """Implementasi untuk analisis file"""
@@ -2275,9 +2561,9 @@ def _implementasi_analisis_file():
                 content = uploaded_file.read().decode('utf-8')
                 texts = [line.strip() for line in content.split('\n') if line.strip()]
             
-            st.success(f"✅ File berhasil dibaca: {len(texts)} teks ditemukan")
+            st.success(f"File berhasil dibaca: {len(texts)} teks ditemukan")
             
-            if st.button("🚀 Analisis Semua Teks", type="primary"):
+            if st.button("Analisis Semua Teks", type="primary"):
                 if 'model_package' not in st.session_state:
                     model_package = load_model_from_pickle()
                     if not model_package:
@@ -2286,242 +2572,12 @@ def _implementasi_analisis_file():
                 else:
                     model_package = st.session_state.model_package
                 
-                results = []
-                progress_bar = st.progress(0)
-                status_text = st.empty()
-                
-                for i, text in enumerate(texts):
-                    status_text.text(f"Memproses teks {i+1}/{len(texts)}...")
-                    
-                    try:
-                        # Analisis teks
-                        model = model_package['model']
-                        vectorizer = model_package['tfidf_vectorizer']
-                        
-                        # Preprocessing
-                        factory = StopWordRemoverFactory()
-                        stopword_remover = factory.create_stop_word_remover()
-                        
-                        def clean_text_input(t):
-                            if not isinstance(t, str):
-                                return ""
-                            t = t.lower()
-                            t = re.sub(r'[^a-zA-Z\s]', ' ', t)
-                            t = re.sub(r'\s+', ' ', t).strip()
-                            return t
-                        
-                        cleaned_text = clean_text_input(text)
-                        text_no_stopwords = stopword_remover.remove(cleaned_text)
-                        text_vectorized = vectorizer.transform([text_no_stopwords])
-                        
-                        # Prediksi
-                        prediction = model.predict(text_vectorized)[0]
-                        label = "POSITIF" if prediction == 1 else "NEGATIF"
-                        
-                        # Confidence
-                        if hasattr(model, 'predict_proba'):
-                            probabilities = model.predict_proba(text_vectorized)[0]
-                            confidence = max(probabilities)
-                        else:
-                            confidence = 0.8
-                        
-                        results.append({
-                            'No': i+1,
-                            'Teks': text[:100] + '...' if len(text) > 100 else text,
-                            'Sentimen': label,
-                            'Konfidensi': f"{confidence:.4f}",
-                            'Jumlah Kata': len(text.split())
-                        })
-                        
-                    except Exception as e:
-                        results.append({
-                            'No': i+1,
-                            'Teks': text[:100] + '...' if len(text) > 100 else text,
-                            'Sentimen': 'ERROR',
-                            'Konfidensi': '0.0000',
-                            'Jumlah Kata': len(text.split())
-                        })
-                    
-                    progress_bar.progress((i + 1) / len(texts))
-                
-                progress_bar.progress(1.0)
-                status_text.text("✅ Analisis selesai!")
-                
-                # Tampilkan hasil
-                results_df = pd.DataFrame(results)
-                st.subheader("📋 Hasil Analisis Batch")
-                st.dataframe(results_df, use_container_width=True)
-                
-                # Statistik
-                total = len(results)
-                positif = sum(1 for r in results if r['Sentimen'] == 'POSITIF')
-                negatif = sum(1 for r in results if r['Sentimen'] == 'NEGATIF')
-                error = sum(1 for r in results if r['Sentimen'] == 'ERROR')
-                
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    st.metric("Total", total)
-                with col2:
-                    st.metric("Positif", positif)
-                with col3:
-                    st.metric("Negatif", negatif)
-                with col4:
-                    st.metric("Error", error)
-                
-                # Visualisasi
-                fig, ax = plt.subplots(figsize=(8, 6))
-                labels = ['Positif', 'Negatif', 'Error']
-                sizes = [positif, negatif, error]
-                colors = ['#2ecc71', '#e74c3c', '#f39c12']
-                
-                ax.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
-                ax.set_title('Distribusi Sentimen Batch')
-                st.pyplot(fig)
-                
-                # Tombol download
-                csv = results_df.to_csv(index=False)
-                st.download_button(
-                    label="📥 Download Hasil Analisis (CSV)",
-                    data=csv,
-                    file_name="hasil_analisis_sentimen.csv",
-                    mime="text/csv"
-                )
+                _implementasi_batch_analysis(texts, model_package)
         
         except Exception as e:
-            st.error(f"❌ Error membaca file: {str(e)}")
+            st.error(f"Error membaca file: {str(e)}")
 
-def _implementasi_kelola_model():
-    """Kelola model"""
-    st.subheader("Kelola Model")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.write("**Simpan Model Saat Ini**")
-        if 'all_results' in st.session_state and 'tfidf_vectorizer' in st.session_state:
-            if st.button("💾 Simpan Model Terbaik ke File", key="save_current_model"):
-                filename = save_best_model_to_pickle(
-                    st.session_state.tfidf_vectorizer,
-                    st.session_state.all_results
-                )
-                if filename:
-                    st.success(f"Model disimpan sebagai: {filename}")
-        else:
-            st.info("Belum ada model yang di-training untuk disimpan.")
-    
-    with col2:
-        st.write("**Upload Model**")
-        uploaded_model = st.file_uploader(
-            "Upload file model (.pkl)",
-            type=['pkl'],
-            key="upload_existing_model"
-        )
-        
-        if uploaded_model is not None:
-            try:
-                # Simpan file sementara
-                temp_file = f"temp_uploaded_model.pkl"
-                with open(temp_file, 'wb') as f:
-                    f.write(uploaded_model.getvalue())
-                
-                # Load model
-                with open(temp_file, 'rb') as f:
-                    model_package = pickle.load(f)
-                
-                # Simpan ke session state
-                st.session_state.model_package = model_package
-                st.session_state.current_model = model_package['model']
-                st.session_state.current_vectorizer = model_package['tfidf_vectorizer']
-                st.session_state.model_info = model_package['model_info']
-                
-                st.success("✅ Model berhasil dimuat!")
-                st.info(f"Model: {model_package['model_info']['ratio']} - {model_package['model_info']['kernel']}")
-                st.info(f"Akurasi: {model_package['model_info']['accuracy']:.4f}")
-                
-                # Hapus file sementara
-                os.remove(temp_file)
-                
-            except Exception as e:
-                st.error(f"❌ Error memuat model: {str(e)}")
-    
-    # List model yang tersedia
-    st.subheader("Model yang Tersedia")
-    model_files = [f for f in os.listdir() if f.endswith('.pkl') and f.startswith('best_sentiment_model_')]
-    
-    if model_files:
-        st.write(f"Ditemukan {len(model_files)} file model:")
-        
-        for file in sorted(model_files, reverse=True):
-            try:
-                file_size = os.path.getsize(file) / 1024  # KB
-                modified_time = datetime.fromtimestamp(os.path.getmtime(file))
-                
-                col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
-                with col1:
-                    st.write(f"**{file}**")
-                with col2:
-                    st.write(f"{file_size:.1f} KB")
-                with col3:
-                    st.write(modified_time.strftime('%Y-%m-%d %H:%M'))
-                with col4:
-                    if st.button("Load", key=f"load_{file}"):
-                        model_package = load_model_from_pickle(file)
-                        if model_package:
-                            st.success(f"Model {file} berhasil dimuat!")
-                            st.experimental_rerun()
-            
-            except Exception as e:
-                continue
-    else:
-        st.info("Belum ada file model yang tersedia.")
 
-def _analisis_fallback(text, model_info):
-    """Analisis fallback jika model gagal"""
-    time.sleep(1)
-    
-    # Analisis sederhana berdasarkan keyword
-    positive_keywords = ['bagus', 'baik', 'mantap', 'cepat', 'mudah', 'puas', 'senang', 'ramah']
-    negative_keywords = ['buruk', 'jelek', 'lambat', 'sulit', 'mahal', 'kecewa', 'marah', 'kesal']
-    
-    text_lower = text.lower()
-    
-    pos_count = sum(1 for keyword in positive_keywords if keyword in text_lower)
-    neg_count = sum(1 for keyword in negative_keywords if keyword in text_lower)
-    
-    if pos_count > neg_count:
-        prediction = "POSITIF"
-        confidence = 0.7 + (pos_count * 0.05)
-    elif neg_count > pos_count:
-        prediction = "NEGATIF"
-        confidence = 0.7 + (neg_count * 0.05)
-    else:
-        # Default ke positif
-        prediction = "POSITIF"
-        confidence = 0.6
-    
-    word_count = len(text.split())
-    
-    st.subheader("HASIL ANALISIS (Fallback)")
-    
-    col_res1, col_res2, col_res3 = st.columns(3)
-    with col_res1:
-        st.metric("Jumlah Kata", f"{word_count}")
-    with col_res2:
-        color = "green" if prediction == "POSITIF" else "red"
-        st.markdown(f"<h2 style='color: {color}; text-align: center;'>{prediction}</h2>", 
-                   unsafe_allow_html=True)
-    with col_res3:
-        st.metric("Konfidensi", f"{confidence:.2f}")
-    
-    st.warning("⚠️ Menggunakan analisis fallback karena model tidak tersedia atau error.")
-    
-    with st.expander("Detail Analisis"):
-        st.write("**Kalimat Input:**")
-        st.info(f'"{text}"')
-        
-        st.write("**Metode:** Analisis keyword sederhana")
-        st.write(f"- Kata positif ditemukan: {pos_count}")
-        st.write(f"- Kata negatif ditemukan: {neg_count}")
 
 def main():
     """Fungsi utama"""
