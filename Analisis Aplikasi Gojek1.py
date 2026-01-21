@@ -2272,7 +2272,7 @@ def _implementasi_analisis_teks():
             st.warning("Silakan masukkan teks untuk dianalisis!")
 
 def _analisis_sentimen_aktual(text, model_package):
-    """Melakukan analisis sentimen yang sesungguhnya"""
+    """Melakukan analisis sentimen"""
     with st.spinner("Menganalisis sentimen..."):
         try:
             # Ambil model dan vectorizer
