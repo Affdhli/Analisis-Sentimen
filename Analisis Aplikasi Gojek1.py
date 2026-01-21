@@ -16,6 +16,7 @@ import warnings
 warnings.filterwarnings('ignore')
 from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
 import time
+from scipy import sparse
 import joblib
 import pickle
 from io import BytesIO
@@ -622,15 +623,7 @@ def create_wordcloud_viz(df):
         st.error(f"Error membuat WordCloud: {str(e)}")
         st.info("Pastikan data telah diproses dengan benar pada section sebelumnya.")
 
-import streamlit as st
-import pandas as pd
-import numpy as np
-import os
-from datetime import datetime
-import matplotlib.pyplot as plt
-from sklearn.feature_extraction.text import TfidfVectorizer
-from scipy import sparse
-import pickle
+
 
 def tfidf_feature_extraction(df):
     """Ekstraksi fitur TF-IDF"""
