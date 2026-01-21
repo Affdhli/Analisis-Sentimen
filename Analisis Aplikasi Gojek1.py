@@ -622,9 +622,28 @@ def create_wordcloud_viz(df):
         st.error(f"Error membuat WordCloud: {str(e)}")
         st.info("Pastikan data telah diproses dengan benar pada section sebelumnya.")
 
+import streamlit as st
+import pandas as pd
+import numpy as np
+import os
+from datetime import datetime
+import matplotlib.pyplot as plt
+from sklearn.feature_extraction.text import TfidfVectorizer
+from scipy import sparse
+import pickle
+
 def tfidf_feature_extraction(df):
     """Ekstraksi fitur TF-IDF"""
     st.header("5. EKSTRAKSI FITUR DENGAN TF-IDF")
+    
+    # Validasi input
+    if 'processed_text' not in df.columns:
+        st.error("Kolom 'processed_text' tidak ditemukan dalam dataframe!")
+        return None, None, None
+    
+    if 'sentiment_label' not in df.columns:
+        st.error("Kolom 'sentiment_label' tidak ditemukan dalam dataframe!")
+        return None, None, None
     
     # Inisialisasi TF-IDF Vectorizer
     tfidf_vectorizer = TfidfVectorizer(
@@ -637,7 +656,19 @@ def tfidf_feature_extraction(df):
     # Transformasi teks menjadi vektor TF-IDF
     with st.spinner("Melakukan transformasi TF-IDF..."):
         X = tfidf_vectorizer.fit_transform(df['processed_text'])
-        y = df['sentiment_label'].map({'positive': 1, 'negative': 0})
+        
+        # Validasi mapping sentiment label
+        unique_labels = df['sentiment_label'].unique()
+        st.info(f"Label sentimen yang ditemukan: {unique_labels}")
+        
+        # Mapping label
+        label_map = {'positive': 1, 'negative': 0}
+        # Pastikan semua label valid
+        if not all(label in label_map for label in unique_labels):
+            st.error(f"Label sentimen tidak valid. Harap pastikan hanya ada 'positive' dan 'negative'.")
+            return None, None, None
+            
+        y = df['sentiment_label'].map(label_map)
     
     st.success(f"Transformasi TF-IDF selesai!")
     
@@ -654,7 +685,9 @@ def tfidf_feature_extraction(df):
     feature_names = tfidf_vectorizer.get_feature_names_out()
     idf_values = tfidf_vectorizer.idf_
     
-    top_indices = np.argsort(idf_values)[:20]
+    # Perbaikan: ambil top 20 fitur dengan IDF tertinggi (paling khas)
+    top_indices = np.argsort(idf_values)[-20:]  # Ambil 20 terakhir (IDF tertinggi)
+    top_indices = top_indices[::-1]  # Balik urutan agar terbesar di atas
     
     top_features_data = []
     for idx in top_indices:
@@ -666,287 +699,109 @@ def tfidf_feature_extraction(df):
     top_features_df = pd.DataFrame(top_features_data)
     st.dataframe(top_features_df)
     
-# TAMBAHAN: SIMPAN HASIL TF-IDF
-st.subheader("SIMPAN HASIL EKSTRAKSI FITUR TF-IDF")
-
-# Pastikan variabel X (matriks TF-IDF) dan feature_names ada
-if 'X' not in locals() and 'X' not in globals():
-    st.error("Matriks TF-IDF (X) tidak ditemukan. Pastikan telah melakukan ekstraksi fitur terlebih dahulu.")
-    st.stop()
-
-if 'feature_names' not in locals() and 'feature_names' not in globals():
-    st.error("Daftar fitur (feature_names) tidak ditemukan.")
-    st.stop()
-
-# Buat tab untuk berbagai format penyimpanan
-tab1, tab2, tab3, tab4 = st.tabs(["Matriks TF-IDF", "Daftar Fitur", "Top Fitur", "Semua Data"])
-
-with tab1:
-    st.markdown("### Simpan Matriks TF-IDF")
+    # TAMBAHAN: SIMPAN HASIL TF-IDF
+    st.subheader("SIMPAN HASIL EKSTRAKSI FITUR TF-IDF")
     
-    # Tampilkan informasi matriks
-    st.info(f"Ukuran matriks: {X.shape[0]} dokumen × {X.shape[1]} fitur")
+    # Buat tab untuk berbagai format penyimpanan
+    tab1, tab2, tab3, tab4 = st.tabs(["Matriks TF-IDF", "Daftar Fitur", "Top Fitur", "Semua Data"])
     
-    # Konversi sparse matrix ke dense (untuk sample kecil) atau simpan sebagai sparse
-    save_option = st.radio("Pilih format matriks:", 
-                          ["Sparse Matrix (CSR - direkomendasikan)", "Dense Matrix"], 
-                          help="Sparse Matrix lebih efisien untuk data tekstual")
-    
-    # Tombol simpan
-    col1, col2 = st.columns(2)
-    with col1:
-        save_format = st.selectbox("Format file:", ["NPZ (sparse)", "CSV", "PKL (Pickle)", "JSON"])
-    with col2:
-        filename_tfidf = st.text_input("Nama file matriks:", 
-                                      value=f"tfidf_matrix_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
-    
-    if st.button("Simpan Matriks TF-IDF", type="primary"):
-        try:
-            file_path = None
-            
-            if save_option == "Sparse Matrix (CSR - direkomendasikan)":
-                # Untuk sparse matrix
-                if save_format == "NPZ (sparse)":
-                    file_path = f"{filename_tfidf}.npz"
-                    from scipy import sparse
-                    sparse.save_npz(file_path, X)
-                    st.success(f"Matriks TF-IDF sparse disimpan sebagai {file_path}")
-                    
-                elif save_format == "PKL (Pickle)":
-                    file_path = f"{filename_tfidf}.pkl"
-                    import pickle
-                    with open(file_path, 'wb') as f:
-                        pickle.dump(X, f)
-                    st.success(f"Matriks TF-IDF sparse disimpan sebagai {file_path}")
-                    
-                elif save_format == "CSV":
-                    # Peringatan untuk ukuran besar
-                    total_elements = X.shape[0] * X.shape[1]
-                    if total_elements < 500000:  # Batas 500k elemen untuk CSV
-                        file_path = f"{filename_tfidf}.csv"
-                        # Konversi ke dense untuk CSV
-                        if hasattr(X, 'toarray'):
-                            X_dense = X.toarray()
-                        else:
-                            X_dense = X
-                        
-                        # Buat DataFrame
-                        df = pd.DataFrame(X_dense, columns=feature_names)
-                        df.to_csv(file_path, index=False)
-                        st.success(f"Matriks TF-IDF disimpan sebagai {file_path} ({df.shape[0]} baris, {df.shape[1]} kolom)")
-                    else:
-                        st.error(f"Matriks terlalu besar untuk CSV ({total_elements:,} elemen). Gunakan format NPZ atau PKL.")
-                        
-                elif save_format == "JSON":
-                    total_elements = X.shape[0] * X.shape[1]
-                    if total_elements < 100000:  # Batas lebih kecil untuk JSON
-                        file_path = f"{filename_tfidf}.json"
-                        if hasattr(X, 'toarray'):
-                            X_dense = X.toarray()
-                        else:
-                            X_dense = X
-                        
-                        df = pd.DataFrame(X_dense, columns=feature_names)
-                        df.to_json(file_path, orient='split')
-                        st.success(f"Matriks TF-IDF disimpan sebagai {file_path}")
-                    else:
-                        st.error(f"Matriks terlalu besar untuk JSON ({total_elements:,} elemen). Gunakan format NPZ atau PKL.")
-            
-            else:  # Dense Matrix option
-                # Konversi ke dense matrix
-                try:
-                    if hasattr(X, 'toarray'):
-                        X_dense = X.toarray()
-                    else:
-                        X_dense = X
-                    
-                    total_elements = X_dense.shape[0] * X_dense.shape[1]
-                    
+    with tab1:
+        st.markdown("### Simpan Matriks TF-IDF")
+        
+        # Konversi sparse matrix ke dense (untuk sample kecil) atau simpan sebagai sparse
+        save_option = st.radio("Pilih format matriks:", 
+                              ["Sparse Matrix (CSR - direkomendasikan)", "Dense Matrix"], 
+                              help="Sparse Matrix lebih efisien untuk data tekstual")
+        
+        if save_option == "Dense Matrix":
+            # Konversi ke dense matrix (hanya untuk data kecil)
+            if X.shape[0] * X.shape[1] < 1000000:  # Batas 1 juta elemen
+                X_dense = X.toarray()
+                st.info(f"Matriks dense: {X_dense.shape}")
+                
+                # Tampilkan preview
+                st.markdown("**Preview Matriks TF-IDF (5 baris pertama, 10 kolom pertama):**")
+                preview_df = pd.DataFrame(X_dense[:5, :10], 
+                                         columns=feature_names[:10])
+                st.dataframe(preview_df.style.format("{:.4f}"))
+            else:
+                st.warning("Matriks terlalu besar untuk dikonversi ke dense format.")
+                X_dense = None
+        else:
+            X_dense = None
+        
+        # Tombol simpan
+        col1, col2 = st.columns(2)
+        with col1:
+            save_format = st.selectbox("Format file:", ["NPZ (sparse)", "CSV", "JSON"])
+        with col2:
+            filename_tfidf = st.text_input("Nama file matriks:", 
+                                          value=f"tfidf_matrix_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+        
+        if st.button("Simpan Matriks TF-IDF"):
+            try:
+                file_path = None
+                if save_option == "Sparse Matrix (CSR - direkomendasikan)":
                     if save_format == "NPZ (sparse)":
                         file_path = f"{filename_tfidf}.npz"
-                        from scipy import sparse
-                        sparse.save_npz(file_path, sparse.csr_matrix(X_dense))
-                        st.success(f"Matriks TF-IDF dense disimpan sebagai {file_path}")
-                        
-                    elif save_format == "PKL (Pickle)":
-                        file_path = f"{filename_tfidf}.pkl"
-                        import pickle
-                        with open(file_path, 'wb') as f:
-                            pickle.dump(X_dense, f)
-                        st.success(f"Matriks TF-IDF dense disimpan sebagai {file_path}")
-                        
+                        sparse.save_npz(file_path, X)
+                        st.success(f"Matriks TF-IDF sparse disimpan sebagai {file_path}")
                     elif save_format == "CSV":
                         file_path = f"{filename_tfidf}.csv"
-                        df = pd.DataFrame(X_dense, columns=feature_names)
-                        df.to_csv(file_path, index=False)
-                        st.success(f"Matriks TF-IDF dense disimpan sebagai {file_path}")
-                        
+                        # Simpan sebagai dense matrix untuk CSV
+                        if X.shape[0] * X.shape[1] < 500000:
+                            X_dense_save = X.toarray()
+                            pd.DataFrame(X_dense_save, columns=feature_names).to_csv(file_path, index=False)
+                            st.success(f"Matriks TF-IDF disimpan sebagai {file_path}")
+                        else:
+                            st.error("Matriks terlalu besar untuk disimpan sebagai CSV.")
+                            return
                     elif save_format == "JSON":
-                        file_path = f"{filename_tfidf}.json"
-                        df = pd.DataFrame(X_dense, columns=feature_names)
-                        df.to_json(file_path, orient='split')
-                        st.success(f"Matriks TF-IDF dense disimpan sebagai {file_path}")
-                        
-                except MemoryError:
-                    st.error("Tidak cukup memori untuk mengonversi ke dense matrix. Gunakan format sparse.")
-                except Exception as e:
-                    st.error(f"Error konversi ke dense: {str(e)}")
-            
-            # Tampilkan tombol download jika file berhasil disimpan
-            if file_path and os.path.exists(file_path):
-                # Tampilkan preview jika file tidak terlalu besar
-                file_size = os.path.getsize(file_path)
-                st.info(f"Ukuran file: {file_size / 1024:.2f} KB")
+                        st.warning("Format JSON tidak direkomendasikan untuk matriks sparse yang besar.")
+                        return
+                else:
+                    if X_dense is not None:
+                        if save_format == "NPZ (sparse)":
+                            file_path = f"{filename_tfidf}.npz"
+                            sparse.save_npz(file_path, sparse.csr_matrix(X_dense))
+                        elif save_format == "CSV":
+                            file_path = f"{filename_tfidf}.csv"
+                            pd.DataFrame(X_dense, columns=feature_names).to_csv(file_path, index=False)
+                        elif save_format == "JSON":
+                            file_path = f"{filename_tfidf}.json"
+                            # Simpan sebagai format yang lebih efisien
+                            tfidf_dict = {
+                                'data': X_dense.tolist(),
+                                'features': feature_names.tolist(),
+                                'shape': X_dense.shape
+                            }
+                            import json
+                            with open(file_path, 'w') as f:
+                                json.dump(tfidf_dict, f)
+                        st.success(f"Matriks TF-IDF disimpan sebagai {file_path}")
+                    else:
+                        st.error("Matriks tidak tersedia dalam format dense.")
+                        return
                 
                 # Tombol download
-                with open(file_path, "rb") as f:
-                    st.download_button(
-                        label="Download File",
-                        data=f,
-                        file_name=os.path.basename(file_path),
-                        mime="application/octet-stream",
-                        key=f"download_{filename_tfidf}"
-                    )
-                
-                # Tampilkan preview untuk CSV/JSON
-                if file_path.endswith('.csv'):
-                    try:
-                        preview_df = pd.read_csv(file_path, nrows=5)
-                        st.markdown("**Preview (5 baris pertama):**")
-                        st.dataframe(preview_df.head())
-                    except:
-                        pass
+                if file_path and os.path.exists(file_path):
+                    with open(file_path, "rb") as f:
+                        st.download_button(
+                            label="Download Matriks",
+                            data=f,
+                            file_name=os.path.basename(file_path),
+                            mime="application/octet-stream"
+                        )
+                else:
+                    st.error(f"File {file_path} tidak ditemukan.")
                         
-            elif not file_path:
-                st.warning("Tidak ada file yang dibuat.")
-                
-        except Exception as e:
-            st.error(f"Error saat menyimpan: {str(e)}")
-            import traceback
-            st.code(traceback.format_exc())
-
-with tab2:
-    st.markdown("### Simpan Daftar Fitur")
-    if st.button("Simpan Daftar Fitur"):
-        try:
-            features_df = pd.DataFrame({"feature_name": feature_names})
-            features_file = f"tfidf_features_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-            features_df.to_csv(features_file, index=False)
-            st.success(f"Daftar {len(feature_names)} fitur disimpan sebagai {features_file}")
-            
-            with open(features_file, "rb") as f:
-                st.download_button(
-                    label="Download Daftar Fitur",
-                    data=f,
-                    file_name=features_file,
-                    mime="text/csv"
-                )
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
-
-with tab3:
-    st.markdown("### Simpan Top Fitur per Dokumen")
-    top_n = st.slider("Jumlah top fitur per dokumen:", 5, 20, 10)
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+                import traceback
+                st.code(traceback.format_exc())
     
-    if st.button("Ekstrak dan Simpan Top Fitur"):
-        try:
-            if hasattr(X, 'toarray'):
-                X_dense = X.toarray()
-            else:
-                X_dense = X
-            
-            top_features_list = []
-            for i in range(min(10, X_dense.shape[0])):  # Batasi untuk 10 dokumen pertama
-                doc_features = X_dense[i]
-                top_indices = doc_features.argsort()[-top_n:][::-1]
-                top_features = [(feature_names[idx], doc_features[idx]) 
-                               for idx in top_indices if doc_features[idx] > 0]
-                top_features_list.append({
-                    "dokumen": i,
-                    "top_fitur": top_features
-                })
-            
-            top_file = f"top_features_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-            import json
-            with open(top_file, 'w') as f:
-                json.dump(top_features_list, f, indent=2)
-            
-            st.success(f"Top {top_n} fitur untuk 10 dokumen pertama disimpan sebagai {top_file}")
-            
-            with open(top_file, "rb") as f:
-                st.download_button(
-                    label="Download Top Fitur",
-                    data=f,
-                    file_name=top_file,
-                    mime="application/json"
-                )
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
-
-with tab4:
-    st.markdown("### Simpan Semua Data (Matriks + Metadata)")
-    
-    if st.button("Simpan Semua Data", type="primary"):
-        try:
-            # Buat folder untuk semua data
-            folder_name = f"tfidf_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            os.makedirs(folder_name, exist_ok=True)
-            
-            # Simpan matriks sparse
-            matrix_path = os.path.join(folder_name, "tfidf_matrix.npz")
-            from scipy import sparse
-            sparse.save_npz(matrix_path, X)
-            
-            # Simpan daftar fitur
-            features_path = os.path.join(folder_name, "features.csv")
-            pd.DataFrame({"feature": feature_names}).to_csv(features_path, index=False)
-            
-            # Simpan metadata
-            metadata = {
-                "created_date": datetime.now().isoformat(),
-                "matrix_shape": X.shape,
-                "n_documents": X.shape[0],
-                "n_features": X.shape[1],
-                "matrix_type": "sparse" if hasattr(X, 'toarray') else "dense"
-            }
-            
-            metadata_path = os.path.join(folder_name, "metadata.json")
-            import json
-            with open(metadata_path, 'w') as f:
-                json.dump(metadata, f, indent=2)
-            
-            # Buat ZIP file
-            zip_path = f"{folder_name}.zip"
-            import zipfile
-            with zipfile.ZipFile(zip_path, 'w') as zipf:
-                for file in [matrix_path, features_path, metadata_path]:
-                    zipf.write(file, os.path.basename(file))
-            
-            st.success(f"Semua data disimpan dalam folder {folder_name}")
-            st.info(f"File ZIP berisi: tfidf_matrix.npz, features.csv, metadata.json")
-            
-            # Tombol download ZIP
-            with open(zip_path, "rb") as f:
-                st.download_button(
-                    label="Download ZIP Package",
-                    data=f,
-                    file_name=f"{folder_name}.zip",
-                    mime="application/zip"
-                )
-                
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
-
-# TAMBAHAN: SIMPAN FITUR DAN VECTORIZER
-st.subheader("SIMPAN MODEL DAN FITUR TF-IDF")
-
-# Cek jika variabel idf_values dan tfidf_vectorizer ada
-if 'idf_values' in locals() or 'idf_values' in globals():
-    # Tab untuk fitur tambahan
-    tab5, tab6, tab7, tab8 = st.tabs(["Semua Fitur dengan IDF", "Top Fitur", "Data Gabungan", "Vectorizer Model"])
-    
-    with tab5:
-        st.markdown("### Simpan Daftar Semua Fitur dengan IDF Scores")
+    with tab2:
+        st.markdown("### Simpan Daftar Semua Fitur")
         
         # Buat dataframe semua fitur dengan IDF scores
         features_df = pd.DataFrame({
@@ -966,8 +821,9 @@ if 'idf_values' in locals() or 'idf_values' in globals():
             filename_features = st.text_input("Nama file fitur:", 
                                             value=f"tfidf_features_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
         
-        if st.button("Simpan Daftar Fitur Lengkap"):
+        if st.button("Simpan Daftar Fitur"):
             try:
+                file_path = None
                 if feat_format == "CSV":
                     file_path = f"{filename_features}.csv"
                     features_df.to_csv(file_path, index=False)
@@ -981,64 +837,65 @@ if 'idf_values' in locals() or 'idf_values' in globals():
                 st.success(f"Daftar fitur disimpan sebagai {file_path}")
                 
                 # Download button
-                with open(file_path, "rb") as f:
-                    st.download_button(
-                        label="Download Daftar Fitur",
-                        data=f,
-                        file_name=os.path.basename(file_path),
-                        mime="text/csv" if feat_format == "CSV" else 
-                             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" if feat_format == "Excel" else 
-                             "application/json"
-                    )
+                if file_path and os.path.exists(file_path):
+                    with open(file_path, "rb") as f:
+                        st.download_button(
+                            label="Download Daftar Fitur",
+                            data=f,
+                            file_name=os.path.basename(file_path),
+                            mime="text/csv" if feat_format == "CSV" else 
+                                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" if feat_format == "Excel" else 
+                                 "application/json"
+                        )
+                else:
+                    st.error(f"File {file_path} tidak ditemukan.")
                     
             except Exception as e:
                 st.error(f"Error: {str(e)}")
     
-    with tab6:
-        st.markdown("### Simpan Top Fitur berdasarkan IDF Score")
+    with tab3:
+        st.markdown("### Simpan Top Fitur")
         
         # Pilih jumlah top fitur
-        num_top_features = st.slider("Jumlah top fitur:", 10, 100, 50, key="top_features_slider")
+        num_top_features = st.slider("Jumlah top fitur:", 10, 100, 50)
         
-        # Hitung top fitur berdasarkan IDF
-        import numpy as np
-        top_indices_custom = np.argsort(idf_values)[:num_top_features]
+        # Hitung top fitur berdasarkan IDF (paling khas = IDF tinggi)
+        top_indices_custom = np.argsort(idf_values)[-num_top_features:]  # Ambil num_top_features terakhir
+        top_indices_custom = top_indices_custom[::-1]  # Balik urutan
+        
         top_features_custom = pd.DataFrame({
             'Fitur': feature_names[top_indices_custom],
             'IDF_Score': idf_values[top_indices_custom],
             'Ranking': range(1, num_top_features + 1)
-        }).sort_values('IDF_Score', ascending=True)
+        })
         
         # Tampilkan
         st.markdown(f"**Top {num_top_features} Fitur:**")
         st.dataframe(top_features_custom)
         
-        # Visualisasi top features
-        try:
-            import matplotlib.pyplot as plt
-            fig, ax = plt.subplots(figsize=(10, 6))
-            y_pos = np.arange(min(20, num_top_features))
-            ax.barh(y_pos, top_features_custom['IDF_Score'].head(20))
-            ax.set_yticks(y_pos)
-            ax.set_yticklabels(top_features_custom['Fitur'].head(20))
-            ax.set_xlabel('IDF Score')
-            ax.set_title('Top 20 Fitur berdasarkan IDF Score')
-            plt.tight_layout()
-            st.pyplot(fig)
-        except:
-            st.info("Visualisasi tidak dapat ditampilkan.")
+        # Visualisasi top features (maksimal 20 untuk visualisasi)
+        num_visualize = min(20, num_top_features)
+        fig, ax = plt.subplots(figsize=(10, 6))
+        y_pos = np.arange(num_visualize)
+        ax.barh(y_pos, top_features_custom['IDF_Score'].head(num_visualize))
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(top_features_custom['Fitur'].head(num_visualize))
+        ax.set_xlabel('IDF Score')
+        ax.set_title(f'Top {num_visualize} Fitur berdasarkan IDF Score')
+        plt.tight_layout()
+        st.pyplot(fig)
         
         # Simpan
         col1, col2 = st.columns(2)
         with col1:
-            top_format = st.selectbox("Format top fitur:", ["CSV", "Excel", "JSON", "PNG"], key="top_format")
+            top_format = st.selectbox("Format top fitur:", ["CSV", "Excel", "JSON", "PNG"])
         with col2:
             filename_top = st.text_input("Nama file top fitur:", 
-                                       value=f"top_{num_top_features}_features_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-                                       key="filename_top")
+                                       value=f"top_{num_top_features}_features_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
         
-        if st.button("Simpan Top Fitur Berdasarkan IDF"):
+        if st.button("Simpan Top Fitur"):
             try:
+                file_path = None
                 if top_format in ["CSV", "Excel", "JSON"]:
                     if top_format == "CSV":
                         file_path = f"{filename_top}.csv"
@@ -1053,18 +910,21 @@ if 'idf_values' in locals() or 'idf_values' in globals():
                     st.success(f"Top fitur disimpan sebagai {file_path}")
                     
                     # Download button
-                    with open(file_path, "rb") as f:
-                        st.download_button(
-                            label=f"Download Top {num_top_features} Fitur",
-                            data=f,
-                            file_name=os.path.basename(file_path)
-                        )
+                    if file_path and os.path.exists(file_path):
+                        with open(file_path, "rb") as f:
+                            st.download_button(
+                                label=f"Download Top {num_top_features} Fitur",
+                                data=f,
+                                file_name=os.path.basename(file_path)
+                            )
+                    else:
+                        st.error(f"File {file_path} tidak ditemukan.")
                 elif top_format == "PNG":
                     file_path = f"{filename_top}.png"
-                    if 'fig' in locals():
-                        fig.savefig(file_path, dpi=300, bbox_inches='tight')
-                        st.success(f"Visualisasi disimpan sebagai {file_path}")
-                        
+                    fig.savefig(file_path, dpi=300, bbox_inches='tight')
+                    st.success(f"Visualisasi disimpan sebagai {file_path}")
+                    
+                    if file_path and os.path.exists(file_path):
                         with open(file_path, "rb") as f:
                             st.download_button(
                                 label="Download Gambar",
@@ -1073,117 +933,154 @@ if 'idf_values' in locals() or 'idf_values' in globals():
                                 mime="image/png"
                             )
                     else:
-                        st.error("Gambar tidak tersedia untuk disimpan.")
+                        st.error(f"File {file_path} tidak ditemukan.")
                         
             except Exception as e:
                 st.error(f"Error: {str(e)}")
     
-    with tab7:
-        st.markdown("### Simpan Data Gabungan dengan Fitur TF-IDF")
+    with tab4:
+        st.markdown("### Simpan Semua Data dengan Fitur TF-IDF")
         
-        # Cek jika df (data asli) ada
-        if 'df' in locals() or 'df' in globals():
-            # Gabungkan data asli dengan TF-IDF features (untuk sample kecil)
-            if X.shape[0] < 1000:  # Batas 1000 dokumen untuk penggabungan
-                st.info("Menggabungkan data asli dengan fitur TF-IDF...")
-                
-                # Konversi ke dataframe
-                if hasattr(X, 'toarray'):
-                    tfidf_df = pd.DataFrame(X.toarray(), columns=feature_names)
-                else:
-                    tfidf_df = pd.DataFrame(X, columns=feature_names)
-                
-                # Gabungkan dengan data asli
-                combined_df = pd.concat([df.reset_index(drop=True), tfidf_df], axis=1)
-                
-                # Tampilkan preview
-                st.markdown("**Preview Data Gabungan (5 baris pertama):**")
-                st.dataframe(combined_df.head())
-                
-                # Simpan
-                col1, col2 = st.columns(2)
-                with col1:
-                    combined_format = st.selectbox("Format data gabungan:", ["CSV", "Excel", "Parquet"])
-                with col2:
-                    filename_combined = st.text_input("Nama file data gabungan:", 
-                                                    value=f"combined_tfidf_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
-                
-                if st.button("Simpan Data Gabungan"):
-                    try:
-                        if combined_format == "CSV":
-                            file_path = f"{filename_combined}.csv"
-                            combined_df.to_csv(file_path, index=False)
-                        elif combined_format == "Excel":
-                            file_path = f"{filename_combined}.xlsx"
-                            combined_df.to_excel(file_path, index=False)
-                        elif combined_format == "Parquet":
-                            file_path = f"{filename_combined}.parquet"
-                            combined_df.to_parquet(file_path, index=False)
-                        
-                        st.success(f"Data gabungan disimpan sebagai {file_path}")
-                        
-                        # Download button
+        # Gabungkan data asli dengan TF-IDF features (untuk sample kecil)
+        if X.shape[0] < 1000:  # Batas 1000 dokumen untuk penggabungan
+            st.info("Menggabungkan data asli dengan fitur TF-IDF...")
+            
+            # Konversi ke dataframe
+            tfidf_df = pd.DataFrame(X.toarray(), columns=feature_names)
+            
+            # Gabungkan dengan data asli
+            combined_df = pd.concat([df.reset_index(drop=True), tfidf_df], axis=1)
+            
+            # Tampilkan preview
+            st.markdown("**Preview Data Gabungan (5 baris pertama):**")
+            st.dataframe(combined_df.head())
+            
+            # Simpan
+            col1, col2 = st.columns(2)
+            with col1:
+                combined_format = st.selectbox("Format data gabungan:", ["CSV", "Excel", "Parquet"])
+            with col2:
+                filename_combined = st.text_input("Nama file data gabungan:", 
+                                                value=f"combined_tfidf_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+            
+            if st.button("Simpan Data Gabungan"):
+                try:
+                    file_path = None
+                    if combined_format == "CSV":
+                        file_path = f"{filename_combined}.csv"
+                        combined_df.to_csv(file_path, index=False)
+                    elif combined_format == "Excel":
+                        file_path = f"{filename_combined}.xlsx"
+                        combined_df.to_excel(file_path, index=False)
+                    elif combined_format == "Parquet":
+                        file_path = f"{filename_combined}.parquet"
+                        combined_df.to_parquet(file_path, index=False)
+                    
+                    st.success(f"Data gabungan disimpan sebagai {file_path}")
+                    
+                    # Download button
+                    if file_path and os.path.exists(file_path):
                         with open(file_path, "rb") as f:
                             st.download_button(
                                 label="Download Data Gabungan",
                                 data=f,
                                 file_name=os.path.basename(file_path)
                             )
-                            
-                    except Exception as e:
-                        st.error(f"Error: {str(e)}")
-            else:
-                st.warning("Data terlalu besar untuk digabungkan. Disarankan hanya menyimpan matriks TF-IDF saja.")
-        else:
-            st.info("Data asli (df) tidak ditemukan. Hanya dapat menyimpan matriks TF-IDF.")
-    
-    with tab8:
-        st.markdown("### Simpan TF-IDF Vectorizer Model")
-        
-        if 'tfidf_vectorizer' in locals() or 'tfidf_vectorizer' in globals():
-            st.info("Simpan model TF-IDF Vectorizer untuk digunakan pada data baru.")
-            
-            filename_vectorizer = st.text_input("Nama file vectorizer:", 
-                                              value=f"tfidf_vectorizer_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
-            
-            if st.button("Simpan Vectorizer Model"):
-                try:
-                    import pickle
-                    file_path = f"{filename_vectorizer}.pkl"
-                    
-                    # Simpan vectorizer
-                    with open(file_path, 'wb') as f:
-                        pickle.dump(tfidf_vectorizer, f)
-                    
-                    st.success(f"Vectorizer disimpan sebagai {file_path}")
-                    
-                    # Informasi vectorizer
-                    vectorizer_info = {
-                        'vocabulary_size': len(tfidf_vectorizer.vocabulary_),
-                        'max_features': tfidf_vectorizer.max_features,
-                        'min_df': tfidf_vectorizer.min_df,
-                        'max_df': tfidf_vectorizer.max_df,
-                        'ngram_range': tfidf_vectorizer.ngram_range
-                    }
-                    
-                    st.json(vectorizer_info)
-                    
-                    # Download button
-                    with open(file_path, "rb") as f:
-                        st.download_button(
-                            label="Download Vectorizer",
-                            data=f,
-                            file_name=os.path.basename(file_path),
-                            mime="application/octet-stream"
-                        )
+                    else:
+                        st.error(f"File {file_path} tidak ditemukan.")
                         
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
         else:
-            st.info("TF-IDF Vectorizer tidak ditemukan.")
-else:
-    st.info("IDF values tidak tersedia. Fitur tambahan tidak dapat ditampilkan.")
-
+            st.warning("Data terlalu besar untuk digabungkan. Disarankan hanya menyimpan matriks TF-IDF saja.")
+    
+    # TAMBAHAN: STATISTIK TF-IDF
+    st.subheader("STATISTIK TF-IDF")
+    
+    # Hitung beberapa statistik
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        # Rata-rata nilai TF-IDF
+        avg_tfidf = X.mean()
+        st.metric("Rata-rata TF-IDF", f"{avg_tfidf:.4f}")
+    
+    with col2:
+        # Sparsity
+        sparsity = 1.0 - (X.count_nonzero() / (X.shape[0] * X.shape[1]))
+        st.metric("Sparsity", f"{sparsity:.2%}")
+    
+    with col3:
+        # Fitur dengan IDF tertinggi (paling khas)
+        most_unique_idx = np.argmax(idf_values)
+        st.metric("Fitur paling unik", feature_names[most_unique_idx])
+    
+    # Distribusi nilai TF-IDF
+    st.markdown("#### Distribusi Nilai TF-IDF")
+    
+    # Ambil sample untuk visualisasi
+    if X.shape[0] > 1000:
+        sample_indices = np.random.choice(X.shape[0], 1000, replace=False)
+        X_sample = X[sample_indices]
+    else:
+        X_sample = X
+    
+    # Konversi ke array untuk histogram
+    tfidf_values_sample = X_sample.data
+    
+    fig2, ax2 = plt.subplots(figsize=(10, 5))
+    ax2.hist(tfidf_values_sample, bins=50, edgecolor='black', alpha=0.7, color='orange')
+    ax2.set_xlabel('Nilai TF-IDF')
+    ax2.set_ylabel('Frekuensi')
+    ax2.set_title('Distribusi Nilai TF-IDF')
+    ax2.grid(True, alpha=0.3)
+    st.pyplot(fig2)
+    
+    # TAMBAHAN: EKSPORT TFIDF VECTORIZER
+    st.subheader("Simpan TF-IDF Vectorizer Model")
+    
+    st.info("Simpan model TF-IDF Vectorizer untuk digunakan pada data baru.")
+    
+    filename_vectorizer = st.text_input("Nama file vectorizer:", 
+                                      value=f"tfidf_vectorizer_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+    
+    if st.button("Simpan Vectorizer Model"):
+        try:
+            file_path = f"{filename_vectorizer}.pkl"
+            
+            # Simpan vectorizer
+            with open(file_path, 'wb') as f:
+                pickle.dump(tfidf_vectorizer, f)
+            
+            st.success(f"Vectorizer disimpan sebagai {file_path}")
+            
+            # Informasi vectorizer
+            vectorizer_info = {
+                'vocabulary_size': len(tfidf_vectorizer.vocabulary_),
+                'max_features': tfidf_vectorizer.max_features,
+                'min_df': tfidf_vectorizer.min_df,
+                'max_df': tfidf_vectorizer.max_df,
+                'ngram_range': tfidf_vectorizer.ngram_range
+            }
+            
+            st.json(vectorizer_info)
+            
+            # Download button
+            if os.path.exists(file_path):
+                with open(file_path, "rb") as f:
+                    st.download_button(
+                        label="Download Vectorizer",
+                        data=f,
+                        file_name=os.path.basename(file_path),
+                        mime="application/octet-stream"
+                    )
+            else:
+                st.error(f"File {file_path} tidak ditemukan.")
+                
+        except Exception as e:
+            st.error(f"Error: {str(e)}")
+    
+    return X, y, tfidf_vectorizer
 
 def data_splitting(X, y):
     """Pembagian data training-testing"""
